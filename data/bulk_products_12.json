@@ -1,0 +1,269 @@
+{
+  "products": [
+    {
+      "name": "Salt",
+      "brand": "Premium Brand",
+      "description": "Pure refined iodized salt for cooking and seasoning. Essential for enhancing flavors in all your dishes. Free from impurities and suitable for all types of cooking.",
+      "price": 35,
+      "unit_size": "1kg",
+      "stock_quantity": 150,
+      "low_stock_threshold": 20,
+      "unit": "kg",
+      "category": "Cooking",
+      "image": "https://picsum.photos/300/200?random=101",
+      "nutrition_info": "Sodium: 39000mg per 100g. Iodized salt helps prevent iodine deficiency. Essential mineral for body functions.",
+      "diet_tags": [
+        "halal",
+        "vegetarian",
+        "gluten-free"
+      ],
+      "is_eco_friendly": false,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Honey",
+      "brand": "Natural Premium",
+      "description": "Pure natural honey collected from local beehives. Unprocessed and unfiltered, preserving all natural enzymes and health benefits. Perfect as a natural sweetener for tea, baking, and cooking.",
+      "price": 450,
+      "unit_size": "500gm",
+      "stock_quantity": 80,
+      "low_stock_threshold": 15,
+      "unit": "packs",
+      "category": "Cooking",
+      "image": "https://picsum.photos/300/200?random=102",
+      "nutrition_info": "Rich in antioxidants, natural sugars, and enzymes. Contains vitamins and minerals. Calories: 304 per 100g.",
+      "diet_tags": [
+        "natural",
+        "organic",
+        "gluten-free"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Dates",
+      "brand": "Premium Quality",
+      "description": "Premium quality dates, naturally dried and sweet. Rich in natural sugars, fiber, and essential nutrients. Perfect for snacks, desserts, and energy boost.",
+      "price": 350,
+      "unit_size": "500gm",
+      "stock_quantity": 100,
+      "low_stock_threshold": 20,
+      "unit": "packs",
+      "category": "Fruits & Vegetables",
+      "image": "https://picsum.photos/300/200?random=103",
+      "nutrition_info": "High in fiber, potassium, magnesium, and natural sugars. Rich in antioxidants. Calories: 282 per 100g. Natural energy source.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "organic",
+        "gluten-free"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Shosha (Cucumber)",
+      "brand": "Fresh Farm",
+      "description": "Fresh, crisp cucumbers locally sourced from trusted farms. Perfect for salads, snacks, and pickling. High water content makes it refreshing and hydrating.",
+      "price": 60,
+      "unit_size": "1kg",
+      "stock_quantity": 200,
+      "low_stock_threshold": 30,
+      "unit": "kg",
+      "category": "Fruits & Vegetables",
+      "image": "https://picsum.photos/300/200?random=104",
+      "nutrition_info": "High water content (95%), low calories. Rich in vitamin K, vitamin C, and potassium. Contains antioxidants and anti-inflammatory compounds.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "vegetarian",
+        "organic",
+        "gluten-free"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Pudinapata (Mint Leaf)",
+      "brand": "Fresh Garden",
+      "description": "Fresh mint leaves harvested from local gardens. Aromatic and flavorful, perfect for teas, chutneys, salads, and garnishing. Natural digestive aid.",
+      "price": 50,
+      "unit_size": "100gm",
+      "stock_quantity": 120,
+      "low_stock_threshold": 25,
+      "unit": "packs",
+      "category": "Fruits & Vegetables",
+      "image": "https://picsum.photos/300/200?random=105",
+      "nutrition_info": "Low in calories, rich in antioxidants. Contains menthol which aids digestion. Good source of vitamin A and vitamin C. Natural breath freshener.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "vegetarian",
+        "organic",
+        "gluten-free"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Kagzi (Lemon)",
+      "brand": "Fresh Farm",
+      "description": "Fresh kagzi lemons, known for their thin skin and juicy flesh. Perfect for cooking, beverages, and garnishing. Rich in vitamin C and natural citric acid.",
+      "price": 80,
+      "unit_size": "1kg",
+      "stock_quantity": 180,
+      "low_stock_threshold": 30,
+      "unit": "kg",
+      "category": "Fruits & Vegetables",
+      "image": "https://picsum.photos/300/200?random=106",
+      "nutrition_info": "Excellent source of vitamin C (53mg per 100g). Rich in citric acid, flavonoids, and antioxidants. Aids digestion and boosts immunity.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "vegetarian",
+        "organic",
+        "gluten-free"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Beef Premium Cube",
+      "brand": "Premium Meat",
+      "description": "Premium quality beef cubes, freshly cut and prepared. Tender and flavorful, perfect for curries, stir-fries, and grilling. Source of high-quality protein.",
+      "price": 550,
+      "unit_size": "1kg",
+      "stock_quantity": 60,
+      "low_stock_threshold": 15,
+      "unit": "kg",
+      "category": "Meat & Poultry",
+      "image": "https://picsum.photos/300/200?random=107",
+      "nutrition_info": "High in protein (26g per 100g), iron, zinc, and B vitamins. Rich source of complete amino acids. Calories: 250 per 100g.",
+      "diet_tags": [
+        "halal",
+        "protein-rich"
+      ],
+      "is_eco_friendly": false,
+      "is_frozen": true,
+      "is_active": true
+    },
+    {
+      "name": "Diploma Instant Full Cream Milk Powder 1kg (Foil Pack)",
+      "brand": "Diploma",
+      "description": "Premium quality instant full cream milk powder in convenient foil packaging. Easy to prepare, just add water. Rich and creamy taste, perfect for beverages and cooking.",
+      "price": 650,
+      "unit_size": "1kg",
+      "stock_quantity": 90,
+      "low_stock_threshold": 20,
+      "unit": "packs",
+      "category": "Dairy & Eggs",
+      "image": "https://picsum.photos/300/200?random=108",
+      "nutrition_info": "Full cream milk powder with all natural nutrients. Rich in calcium (1000mg per 100g), protein (26g per 100g), and vitamin D. Good source of vitamins A and B12.",
+      "diet_tags": [
+        "halal",
+        "vegetarian",
+        "protein-rich",
+        "calcium-rich"
+      ],
+      "is_eco_friendly": false,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Chinigura Rice Loose (P) (BRRI-34)",
+      "brand": "Premium Quality",
+      "description": "Premium quality Chinigura rice, BRRI-34 variety. Long grain, aromatic, and fluffy when cooked. Locally grown premium rice with excellent texture and taste.",
+      "price": 95,
+      "unit_size": "1kg",
+      "stock_quantity": 200,
+      "low_stock_threshold": 40,
+      "unit": "kg",
+      "category": "Rice & Grains",
+      "image": "https://picsum.photos/300/200?random=109",
+      "nutrition_info": "High in carbohydrates, gluten-free. Good source of energy. Contains B vitamins and essential minerals. Low in fat.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "vegetarian",
+        "gluten-free",
+        "locally-grown"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Nazirshail Rice Loose (P) (Sompa Katari)",
+      "brand": "Premium Quality",
+      "description": "Premium Nazirshail rice, Sompa Katari variety. Fine grain, aromatic, and premium quality. Known for its distinct flavor and texture, perfect for special occasions.",
+      "price": 120,
+      "unit_size": "1kg",
+      "stock_quantity": 150,
+      "low_stock_threshold": 30,
+      "unit": "kg",
+      "category": "Rice & Grains",
+      "image": "https://picsum.photos/300/200?random=110",
+      "nutrition_info": "Premium long grain rice, rich in carbohydrates. Gluten-free, contains B vitamins and essential minerals. Excellent source of energy.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "vegetarian",
+        "gluten-free",
+        "premium"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Miniket Rice Loose(S) (BRRI-28)",
+      "brand": "Premium Quality",
+      "description": "Quality Miniket rice, BRRI-28 variety. Short grain rice with good texture and taste. Popular choice for daily meals, easy to cook and digest.",
+      "price": 75,
+      "unit_size": "1kg",
+      "stock_quantity": 180,
+      "low_stock_threshold": 35,
+      "unit": "kg",
+      "category": "Rice & Grains",
+      "image": "https://picsum.photos/300/200?random=111",
+      "nutrition_info": "Short grain rice, high in carbohydrates. Gluten-free, contains B vitamins and essential minerals. Good source of energy for daily consumption.",
+      "diet_tags": [
+        "halal",
+        "vegan",
+        "vegetarian",
+        "gluten-free"
+      ],
+      "is_eco_friendly": true,
+      "is_frozen": false,
+      "is_active": true
+    },
+    {
+      "name": "Fresh Instant Full Cream Milk Powder 1000gm",
+      "brand": "Fresh",
+      "description": "Premium instant full cream milk powder, 1000gm pack. Convenient and long-lasting. Rich and creamy when prepared, perfect for tea, coffee, beverages, and cooking.",
+      "price": 620,
+      "unit_size": "1000gm",
+      "stock_quantity": 85,
+      "low_stock_threshold": 20,
+      "unit": "packs",
+      "category": "Dairy & Eggs",
+      "image": "https://picsum.photos/300/200?random=112",
+      "nutrition_info": "Full cream milk powder with complete nutrition. Rich in calcium (1000mg per 100g), protein (26g per 100g), and essential vitamins. Good source of vitamin D, A, and B12.",
+      "diet_tags": [
+        "halal",
+        "vegetarian",
+        "protein-rich",
+        "calcium-rich"
+      ],
+      "is_eco_friendly": false,
+      "is_frozen": false,
+      "is_active": true
+    }
+  ]
+}
