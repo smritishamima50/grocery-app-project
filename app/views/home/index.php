@@ -4,6 +4,75 @@ ob_start();
 ?>
 
 <style>
+/* Hero Carousel Styles */
+.hero-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 1s ease-in-out;
+}
+
+.hero-slide img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    animation: zoomIn 20s ease-in-out infinite;
+}
+
+@keyframes zoomIn {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin-slow {
+    animation: spin-slow 3s linear infinite;
+}
+
+.hero-dot {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.hero-dot:hover {
+    transform: scale(1.2);
+}
+
+.hero-dot.active {
+    width: 3rem !important;
+    background-color: white !important;
+}
+
+/* Responsive adjustments for hero carousel */
+@media (max-width: 768px) {
+    .hero-slide h2 {
+        font-size: 2.5rem !important;
+    }
+    
+    .hero-slide p {
+        font-size: 1rem !important;
+    }
+    
+    .hero-slide a {
+        padding: 0.75rem 1.5rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
 /* Category-Sized Coupon Carousel Styles - Matching Shop by Category dimensions */
 .category-coupon-container {
     position: relative;
@@ -11,6 +80,7 @@ ob_start();
     border-radius: 1rem;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     overflow: hidden;
+    padding: 16px;
 }
 
 .category-coupon-carousel-container {
@@ -96,6 +166,220 @@ ob_start();
     }
 }
 </style>
+
+<!-- Order Success Message -->
+<?php if (isset($_GET['order_success']) && !empty($_GET['order_success'])): ?>
+<div class="max-w-7xl mx-auto px-4 mt-8 mb-4 animate-slide-down">
+    <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl shadow-2xl p-6 border border-green-400 animate-pulse">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center animate-bounce-in">
+                    <i class="fas fa-check-circle text-3xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-1">
+                        <i class="fas fa-shopping-bag mr-2"></i>
+                        Order Placed Successfully!
+                    </h3>
+                    <p class="text-green-100 text-lg">
+                        <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] == '1'): ?>
+                            Your order #<?php echo htmlspecialchars($_GET['order_success']); ?> has been placed and payment is confirmed. We'll deliver your order soon!
+                        <?php else: ?>
+                            Your order #<?php echo htmlspecialchars($_GET['order_success']); ?> has been placed successfully! You can pay cash on delivery when you receive your order.
+                        <?php endif; ?>
+                    </p>
+                    <div class="mt-3 flex items-center space-x-4">
+                        <a href="/orders/<?php echo htmlspecialchars($_GET['order_success']); ?>" class="inline-flex items-center px-4 py-2 bg-white text-green-600 rounded-lg font-semibold hover:bg-green-50 transition-all duration-300">
+                            <i class="fas fa-eye mr-2"></i>
+                            View Order Details
+                        </a>
+                        <a href="/orders" class="inline-flex items-center px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-300">
+                            <i class="fas fa-list mr-2"></i>
+                            View All Orders
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-green-200 transition-colors duration-300 p-2">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Hero Carousel Section -->
+<section class="relative w-full h-[600px] md:h-[700px] overflow-hidden bg-gray-900">
+    <div id="heroCarousel" class="relative w-full h-full">
+        <!-- Slide 1: Fresh Fruits -->
+        <div class="hero-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out" data-slide="0">
+            <div class="relative w-full h-full">
+                <img src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=1920&q=80" 
+                     alt="Fresh Fruits" 
+                     class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent"></div>
+                <div class="absolute inset-0 flex items-center">
+                    <div class="max-w-7xl mx-auto px-4 w-full">
+                        <div class="max-w-2xl animate-fade-in">
+                            <h2 class="text-5xl md:text-7xl font-bold text-white mb-6 animate-slide-up">
+                                Fresh Fruits
+                            </h2>
+                            <p class="text-xl md:text-2xl text-white/90 mb-8 animate-slide-up" style="animation-delay: 0.2s;">
+                                Handpicked from local farms, delivered fresh to your door
+                            </p>
+                            <a href="/products?category=<?php echo urlencode('Fruits & Vegetables'); ?>" 
+                               class="inline-block bg-green-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-all duration-300 transform hover:scale-105 shadow-xl animate-slide-up" 
+                               style="animation-delay: 0.4s;">
+                                <i class="fas fa-shopping-cart mr-2"></i>Shop Fruits
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Fresh Vegetables -->
+        <div class="hero-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out" data-slide="1">
+            <div class="relative w-full h-full">
+                <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=1920&q=80" 
+                     alt="Fresh Vegetables" 
+                     class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent"></div>
+                <div class="absolute inset-0 flex items-center">
+                    <div class="max-w-7xl mx-auto px-4 w-full">
+                        <div class="max-w-2xl animate-fade-in">
+                            <h2 class="text-5xl md:text-7xl font-bold text-white mb-6 animate-slide-up">
+                                Fresh Vegetables
+                            </h2>
+                            <p class="text-xl md:text-2xl text-white/90 mb-8 animate-slide-up" style="animation-delay: 0.2s;">
+                                Farm-fresh vegetables, rich in nutrients and flavor
+                            </p>
+                            <a href="/products?category=<?php echo urlencode('Fruits & Vegetables'); ?>" 
+                               class="inline-block bg-green-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-all duration-300 transform hover:scale-105 shadow-xl animate-slide-up" 
+                               style="animation-delay: 0.4s;">
+                                <i class="fas fa-shopping-cart mr-2"></i>Shop Vegetables
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Spices & Masala -->
+        <div class="hero-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out" data-slide="2">
+            <div class="relative w-full h-full">
+                <img src="https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=1920&q=80" 
+                     alt="Spices & Masala" 
+                     class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent"></div>
+                <div class="absolute inset-0 flex items-center">
+                    <div class="max-w-7xl mx-auto px-4 w-full">
+                        <div class="max-w-2xl animate-fade-in">
+                            <h2 class="text-5xl md:text-7xl font-bold text-white mb-6 animate-slide-up">
+                                Premium Spices
+                            </h2>
+                            <p class="text-xl md:text-2xl text-white/90 mb-8 animate-slide-up" style="animation-delay: 0.2s;">
+                                Authentic spices and masala to enhance your cooking
+                            </p>
+                            <a href="/products?category=<?php echo urlencode('Spices & Herbs'); ?>" 
+                               class="inline-block bg-green-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-green-700 transition-all duration-300 transform hover:scale-105 shadow-xl animate-slide-up" 
+                               style="animation-delay: 0.4s;">
+                                <i class="fas fa-shopping-cart mr-2"></i>Shop Spices
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Bakery & Dairy Products -->
+        <div class="hero-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out" data-slide="3">
+            <div class="relative w-full h-full">
+                <img src="https://images.unsplash.com/photo-1486427944299-d1955d23e34d?w=1920&q=80" 
+                     alt="Bakery and Dairy Products" 
+                     class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-r from-amber-600/75 via-yellow-500/65 to-orange-500/75"></div>
+                <div class="absolute inset-0 flex items-center">
+                    <div class="max-w-7xl mx-auto px-4 w-full">
+                        <div class="max-w-2xl animate-fade-in">
+                            <!-- Category Badge -->
+                            <div class="inline-flex items-center bg-white/90 text-amber-700 px-6 py-2 rounded-full font-bold text-lg mb-6 animate-bounce-in shadow-xl">
+                                <i class="fas fa-bread-slice mr-2 text-xl"></i>
+                                <span class="mr-3">BAKERY</span>
+                                <i class="fas fa-circle text-xs mx-2"></i>
+                                <i class="fas fa-cheese mr-2 text-xl"></i>
+                                <span>DAIRY</span>
+                            </div>
+                            <h2 class="text-5xl md:text-7xl font-bold text-white mb-6 animate-slide-up drop-shadow-2xl">
+                                Fresh Bakery & Dairy
+                            </h2>
+                            <p class="text-xl md:text-2xl text-white mb-8 animate-slide-up drop-shadow-lg" style="animation-delay: 0.2s;">
+                                Daily fresh bread, pastries, milk, cheese, and eggs. Start your day right with our premium bakery and dairy products!
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-4 animate-slide-up" style="animation-delay: 0.4s;">
+                                <a href="/products?category=<?php echo urlencode('Bakery'); ?>" 
+                                   class="inline-block bg-gradient-to-r from-amber-500 to-orange-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:from-amber-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 shadow-2xl text-center">
+                                    <i class="fas fa-bread-slice mr-2"></i>Shop Bakery
+                                </a>
+                                <a href="/products?category=<?php echo urlencode('Dairy & Eggs'); ?>" 
+                                   class="inline-block bg-white/25 backdrop-blur-sm text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/35 transition-all duration-300 transform hover:scale-105 shadow-xl text-center border-2 border-white/40">
+                                    <i class="fas fa-cheese mr-2"></i>Shop Dairy
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Arrows -->
+    <button onclick="previousHeroSlide()" 
+            class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white text-green-600 hover:text-green-700 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-xl hover:scale-110"
+            aria-label="Previous slide"
+            title="Previous slide">
+        <i class="fas fa-chevron-left text-xl" aria-hidden="true"></i>
+    </button>
+    
+    <button onclick="nextHeroSlide()" 
+            class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white text-green-600 hover:text-green-700 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-xl hover:scale-110"
+            aria-label="Next slide"
+            title="Next slide">
+        <i class="fas fa-chevron-right text-xl" aria-hidden="true"></i>
+    </button>
+
+    <!-- Dot Indicators -->
+    <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3" role="tablist" aria-label="Carousel navigation">
+        <button onclick="goToHeroSlide(0)" 
+                class="hero-dot w-12 h-3 rounded-full bg-white hover:bg-white transition-all duration-300"
+                data-slide="0"
+                role="tab"
+                aria-label="Go to slide 1"
+                aria-selected="true"
+                title="Go to slide 1"></button>
+        <button onclick="goToHeroSlide(1)" 
+                class="hero-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all duration-300"
+                data-slide="1"
+                role="tab"
+                aria-label="Go to slide 2"
+                aria-selected="false"
+                title="Go to slide 2"></button>
+        <button onclick="goToHeroSlide(2)" 
+                class="hero-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all duration-300"
+                data-slide="2"
+                role="tab"
+                aria-label="Go to slide 3"
+                aria-selected="false"
+                title="Go to slide 3"></button>
+        <button onclick="goToHeroSlide(3)" 
+                class="hero-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all duration-300"
+                data-slide="3"
+                role="tab"
+                aria-label="Go to slide 4"
+                aria-selected="false"
+                title="Go to slide 4"></button>
+    </div>
+</section>
 
 <!-- Hero Section -->
 <section class="gradient-bg text-white py-24 relative overflow-hidden">
@@ -201,7 +485,7 @@ ob_start();
 
                                 <!-- Copy Button (compact) -->
                                 <button onclick="copyCouponCode('<?php echo htmlspecialchars($coupon['code']); ?>')" 
-                                        class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2 px-4 rounded-lg font-bold text-sm hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-md">
+                                        class="w-full bg-gradient-to-r from-green-600 to-emerald-600  py-2 px-4 rounded-lg font-bold text-sm hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-md">
                                     <i class="fas fa-copy mr-1"></i>
                                     Copy
                                 </button>
@@ -559,6 +843,81 @@ ob_start();
 </section>
 <?php endif; ?>
 
+<!-- My Wishlist Section -->
+<?php if (isset($_SESSION['user_id']) && !empty($wishlistItems)): ?>
+<section class="py-20 bg-gradient-to-r from-red-50 to-pink-50">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex items-center justify-between mb-12">
+            <h2 class="text-4xl font-bold animate-slide-up">
+                <i class="fas fa-heart text-red-500 mr-3"></i>
+                My Wishlist
+            </h2>
+            <a href="/wishlist" class="text-red-600 hover:text-red-700 font-semibold flex items-center">
+                View All <i class="fas fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+        <p class="text-center text-gray-600 mb-12">Your saved favorite products</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <?php foreach ($wishlistItems as $item): ?>
+                <div class="bg-white rounded-2xl shadow-xl hover-lift card-hover overflow-hidden group animate-on-scroll">
+                    <div class="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                        <?php if ($item['image']): ?>
+                            <img src="<?php echo htmlspecialchars($item['image']); ?>"
+                                 alt="<?php echo htmlspecialchars($item['name']); ?>"
+                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        <?php else: ?>
+                            <i class="fas fa-image text-gray-400 text-5xl"></i>
+                        <?php endif; ?>
+                        <div class="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-bounce-in">
+                            <i class="fas fa-heart"></i> Saved
+                        </div>
+                        <?php if (isset($item['stock_quantity']) && $item['stock_quantity'] == 0): ?>
+                            <div class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                Out of Stock
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-2">
+                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                <?php echo htmlspecialchars($item['category_name'] ?? 'Uncategorized'); ?>
+                            </span>
+                        </div>
+                        <h3 class="font-bold text-xl text-gray-800 group-hover:text-red-600 transition-colors duration-300 mb-2">
+                            <?php echo htmlspecialchars($item['name']); ?>
+                        </h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-2xl font-bold text-green-600">৳<?php echo number_format($item['price'], 2); ?></span>
+                            <span class="text-sm text-gray-500">/ <?php echo htmlspecialchars($item['unit']); ?></span>
+                        </div>
+                        <div class="space-y-2">
+                            <a href="/products/<?php echo $item['product_id']; ?>" 
+                               class="block w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200 text-center">
+                                <i class="fas fa-eye mr-2"></i>View Details
+                            </a>
+                            <button onclick="addToCartFromWishlist(<?php echo $item['product_id']; ?>)" 
+                                    class="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors duration-200 add-to-cart"
+                                    data-product-id="<?php echo $item['product_id']; ?>">
+                                <i class="fas fa-cart-plus mr-2"></i>Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        
+        <?php if (count($wishlistItems) >= 4): ?>
+            <div class="text-center mt-12">
+                <a href="/wishlist" class="btn-primary inline-block text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl transition-all duration-300">
+                    <i class="fas fa-heart mr-2"></i>View All Wishlist Items
+                </a>
+            </div>
+        <?php endif; ?>
+    </div>
+</section>
+<?php endif; ?>
+
 <!-- Features Section -->
 <section class="py-20 bg-gradient-to-r from-green-50 to-blue-50">
     <div class="max-w-7xl mx-auto px-4">
@@ -717,10 +1076,128 @@ function updateCartCount() {
         .catch(error => console.error('Error updating cart count:', error));
 }
 
-// Initialize cart count on page load
+// Add to wishlist functionality for homepage
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('❤️ Setting up wishlist buttons on homepage');
+    
+    document.querySelectorAll('.add-to-wishlist-home').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('❤️ ===== ADD TO WISHLIST CLICKED (HOME) =====');
+            
+            const productId = this.getAttribute('data-product-id');
+            const originalContent = this.innerHTML;
+            
+            console.log('❤️ Product ID:', productId);
+            
+            // Set loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            fetch('/wishlist/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'product_id=' + productId
+            })
+            .then(response => {
+                console.log('❤️ Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text().then(text => {
+                    console.log('❤️ Raw response:', text);
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid JSON: ' + text.substring(0, 100));
+                    }
+                });
+            })
+            .then(data => {
+                console.log('❤️ Parsed data:', data);
+                if (data.success) {
+                    console.log('✅ SUCCESS: Added to wishlist!');
+                    showToast('Successfully added to wishlist!', 'success');
+                    this.innerHTML = '<i class="fas fa-heart text-red-500"></i>';
+                    this.classList.add('bg-red-200', 'text-red-600');
+                    updateWishlistCount();
+                } else {
+                    console.error('❌ FAILED:', data.message);
+                    showToast(data.message || 'Failed to add to wishlist', 'error');
+                    this.disabled = false;
+                    this.innerHTML = originalContent;
+                }
+            })
+            .catch(error => {
+                console.error('❤️ Error:', error);
+                showToast('Error: ' + error.message, 'error');
+                this.disabled = false;
+                this.innerHTML = originalContent;
+            });
+        });
+    });
+    
+    console.log('✅ Wishlist buttons set up on homepage');
     updateCartCount();
+    updateWishlistCount();
 });
+
+// Update wishlist count
+function updateWishlistCount() {
+    fetch('/wishlist/count')
+        .then(response => response.json())
+        .then(data => {
+            const wishlistBadge = document.querySelector('.wishlist-badge');
+            if (wishlistBadge) {
+                if (data.count > 0) {
+                    wishlistBadge.textContent = data.count;
+                    wishlistBadge.classList.remove('hidden');
+                } else {
+                    wishlistBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(error => console.error('Error updating wishlist count:', error));
+}
+
+// Add to cart from wishlist
+function addToCartFromWishlist(productId) {
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+    
+    fetch('/cart/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'product_id=' + productId + '&quantity=1'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Product added to cart!', 'success');
+            button.innerHTML = '<i class="fas fa-check mr-2"></i>Added!';
+            updateCartCount();
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }, 2000);
+        } else {
+            showToast(data.message || 'Failed to add to cart', 'error');
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred', 'error');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
 
 // Copy coupon code to clipboard with enhanced error handling
 const copyCouponCode = (code) => {
@@ -960,7 +1437,181 @@ const handleCategoryCarouselKeydown = (event) => {
 // Initialize category carousel when page loads
 document.addEventListener('DOMContentLoaded', function() {
     initCategoryCouponCarousel();
+    initHeroCarousel();
 });
+
+// ==================== Hero Carousel Functionality ====================
+let currentHeroSlide = 0;
+let heroAutoPlayInterval;
+const totalHeroSlides = 4;
+
+// Initialize hero carousel
+const initHeroCarousel = () => {
+    try {
+        console.log('Initializing hero carousel with', totalHeroSlides, 'slides');
+        
+        // Show first slide
+        updateHeroCarousel();
+        
+        // Start auto-play
+        startHeroAutoPlay();
+        
+        // Pause auto-play on hover
+        const carousel = document.getElementById('heroCarousel');
+        if (carousel) {
+            carousel.addEventListener('mouseenter', stopHeroAutoPlay);
+            carousel.addEventListener('mouseleave', startHeroAutoPlay);
+            
+            // Add keyboard navigation for accessibility
+            carousel.addEventListener('keydown', handleHeroCarouselKeydown);
+            
+            console.log('Hero carousel event listeners added successfully');
+        } else {
+            console.error('Hero carousel element not found');
+        }
+    } catch (error) {
+        console.error('Error initializing hero carousel:', error);
+    }
+};
+
+// Start auto-play for hero carousel
+const startHeroAutoPlay = () => {
+    try {
+        stopHeroAutoPlay(); // Clear any existing interval
+        heroAutoPlayInterval = setInterval(() => {
+            nextHeroSlide();
+        }, 5000); // Auto-rotate every 5 seconds
+        
+        console.log('Hero carousel auto-play started');
+    } catch (error) {
+        console.error('Error starting hero auto-play:', error);
+    }
+};
+
+// Stop auto-play for hero carousel
+const stopHeroAutoPlay = () => {
+    try {
+        if (heroAutoPlayInterval) {
+            clearInterval(heroAutoPlayInterval);
+            heroAutoPlayInterval = null;
+            console.log('Hero carousel auto-play stopped');
+        }
+    } catch (error) {
+        console.error('Error stopping hero auto-play:', error);
+    }
+};
+
+// Next hero slide
+const nextHeroSlide = () => {
+    try {
+        currentHeroSlide = (currentHeroSlide + 1) % totalHeroSlides;
+        updateHeroCarousel();
+        console.log(`Moved to hero slide ${currentHeroSlide + 1}`);
+    } catch (error) {
+        console.error('Error moving to next hero slide:', error);
+    }
+};
+
+// Previous hero slide
+const previousHeroSlide = () => {
+    try {
+        currentHeroSlide = currentHeroSlide === 0 ? totalHeroSlides - 1 : currentHeroSlide - 1;
+        updateHeroCarousel();
+        console.log(`Moved to hero slide ${currentHeroSlide + 1}`);
+    } catch (error) {
+        console.error('Error moving to previous hero slide:', error);
+    }
+};
+
+// Go to specific hero slide
+const goToHeroSlide = (slideIndex) => {
+    try {
+        // Validate slide index
+        if (slideIndex < 0 || slideIndex >= totalHeroSlides) {
+            console.error(`Invalid hero slide index: ${slideIndex}`);
+            return;
+        }
+        
+        currentHeroSlide = slideIndex;
+        updateHeroCarousel();
+        console.log(`Moved to hero slide ${currentHeroSlide + 1}`);
+    } catch (error) {
+        console.error('Error going to hero slide:', error);
+    }
+};
+
+// Update hero carousel
+const updateHeroCarousel = () => {
+    try {
+        const slides = document.querySelectorAll('.hero-slide');
+        const dots = document.querySelectorAll('.hero-dot');
+        
+        if (slides.length === 0) {
+            console.error('Hero slides not found');
+            return;
+        }
+        
+        // Update slides visibility
+        slides.forEach((slide, index) => {
+            if (index === currentHeroSlide) {
+                slide.classList.remove('opacity-0');
+                slide.classList.add('opacity-100');
+                slide.style.zIndex = '10';
+            } else {
+                slide.classList.remove('opacity-100');
+                slide.classList.add('opacity-0');
+                slide.style.zIndex = '1';
+            }
+        });
+        
+        // Update dots
+        dots.forEach((dot, index) => {
+            try {
+                if (index === currentHeroSlide) {
+                    dot.classList.add('bg-white', 'w-12');
+                    dot.classList.remove('bg-white/50', 'w-3');
+                    dot.setAttribute('aria-selected', 'true');
+                } else {
+                    dot.classList.remove('bg-white', 'w-12');
+                    dot.classList.add('bg-white/50', 'w-3');
+                    dot.setAttribute('aria-selected', 'false');
+                }
+            } catch (error) {
+                console.error(`Error updating hero dot ${index}:`, error);
+            }
+        });
+        
+        console.log(`Updated hero carousel to slide ${currentHeroSlide + 1}`);
+    } catch (error) {
+        console.error('Error updating hero carousel:', error);
+    }
+};
+
+// Keyboard navigation for hero carousel accessibility
+const handleHeroCarouselKeydown = (event) => {
+    try {
+        switch (event.key) {
+            case 'ArrowLeft':
+                event.preventDefault();
+                previousHeroSlide();
+                break;
+            case 'ArrowRight':
+                event.preventDefault();
+                nextHeroSlide();
+                break;
+            case 'Home':
+                event.preventDefault();
+                goToHeroSlide(0);
+                break;
+            case 'End':
+                event.preventDefault();
+                goToHeroSlide(totalHeroSlides - 1);
+                break;
+        }
+    } catch (error) {
+        console.error('Error handling hero carousel keyboard navigation:', error);
+    }
+};
 </script>
 
 <?php

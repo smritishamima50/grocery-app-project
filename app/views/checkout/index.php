@@ -49,7 +49,7 @@ ob_start();
             <!-- Order Details -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Delivery Address -->
-                <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-slide-up">
+                <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-slide-up border-l-0">
                     <div class="flex items-center mb-6">
                         <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
                             <i class="fas fa-map-marker-alt text-blue-600 text-xl"></i>
@@ -71,7 +71,7 @@ ob_start();
                                     <i class="fas fa-home mr-2 text-blue-500"></i>Address Line 1 *
                                 </label>
                                 <input type="text" id="new_address_line1" name="new_address_line1" required
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500  bg-white/50 backdrop-blur-sm"
                                        placeholder="House number, street name">
                             </div>
                             <div class="relative">
@@ -79,7 +79,7 @@ ob_start();
                                     <i class="fas fa-building mr-2 text-blue-500"></i>Address Line 2
                                 </label>
                                 <input type="text" id="new_address_line2" name="new_address_line2"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500  bg-white/50 backdrop-blur-sm"
                                        placeholder="Apartment, suite, etc. (optional)">
                             </div>
                             <div class="relative">
@@ -87,7 +87,7 @@ ob_start();
                                     <i class="fas fa-city mr-2 text-blue-500"></i>City *
                                 </label>
                                 <input type="text" id="new_city" name="new_city" required
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500  bg-white/50 backdrop-blur-sm"
                                        placeholder="Enter city name">
                             </div>
                             <div class="relative">
@@ -95,7 +95,7 @@ ob_start();
                                     <i class="fas fa-map mr-2 text-blue-500"></i>State/Province
                                 </label>
                                 <input type="text" id="new_state" name="new_state"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500  bg-white/50 backdrop-blur-sm"
                                        placeholder="Enter state/province">
                             </div>
                             <div class="relative">
@@ -103,7 +103,7 @@ ob_start();
                                     <i class="fas fa-mailbox mr-2 text-blue-500"></i>ZIP/Postal Code
                                 </label>
                                 <input type="text" id="new_zip_code" name="new_zip_code"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500  bg-white/50 backdrop-blur-sm"
                                        placeholder="Enter postal code">
                             </div>
                             <div class="relative">
@@ -111,20 +111,20 @@ ob_start();
                                     <i class="fas fa-globe mr-2 text-blue-500"></i>Country *
                                 </label>
                                 <input type="text" id="new_country" name="new_country" value="Bangladesh" required
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500  bg-white/50 backdrop-blur-sm"
                                        placeholder="Enter country">
                             </div>
                         </div>
                     <?php else: ?>
                         <div class="space-y-4">
                             <?php foreach ($addresses as $address): ?>
-                                <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all duration-300 animate-on-scroll">
-                                    <input type="radio" name="address_id" value="<?php echo $address['id']; ?>" <?php echo empty($addresses) ? '' : 'required'; ?>
-                                           class="absolute top-4 right-4 w-5 h-5 text-blue-600 focus:ring-blue-500">
+                                <label class="relative rounded-xl p-6 animate-on-scroll cursor-pointer border-2 border-transparent hover:border-blue-200 transition-colors address-option">
                                     <div class="flex items-start">
                                         <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4 mt-1">
                                             <i class="fas fa-map-marker-alt text-blue-600"></i>
                                         </div>
+                                        <input type="radio" name="address_id" value="<?php echo $address['id']; ?>" <?php echo empty($addresses) ? '' : 'required'; ?>
+                                           class="w-5 h-5 mr-3 mt-1 text-blue-600 focus:ring-blue-500">
                                         <div class="flex-1">
                                             <div class="flex items-center space-x-2 mb-2">
                                                 <span class="bg-blue-100 text-blue-800 text-sm font-semibold px-3 py-1 rounded-full capitalize">
@@ -198,9 +198,9 @@ ob_start();
                         ?>
 
                         <?php foreach ($deliverySlots as $slot): ?>
-                            <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-4 cursor-pointer hover:border-green-500 hover:shadow-lg transition-all duration-300 <?php echo !$slot['available'] ? 'opacity-50 cursor-not-allowed' : ''; ?>">
+                            <label class="relative rounded-xl p-4 <?php echo !$slot['available'] ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer border-2 border-transparent hover:border-green-200 transition-colors delivery-option'; ?>">
                                 <input type="radio" name="delivery_slot" value="<?php echo $slot['value']; ?>" required
-                                       class="absolute top-3 right-3 w-4 h-4 text-green-600 focus:ring-green-500" <?php echo !$slot['available'] ? 'disabled' : ''; ?>>
+                                       class="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-600 focus:ring-green-500" <?php echo !$slot['available'] ? 'disabled' : ''; ?>>
                                 <div class="flex items-center">
                                     <div class="w-8 h-8 <?php echo $slot['available'] ? 'bg-green-100' : 'bg-gray-100'; ?> rounded-lg flex items-center justify-center mr-3">
                                         <i class="fas <?php echo $slot['available'] ? 'fa-check text-green-600' : 'fa-times text-gray-400'; ?>"></i>
@@ -218,7 +218,7 @@ ob_start();
                 </div>
 
                 <!-- Packaging Options -->
-                <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-slide-up" style="animation-delay: 0.3s;">
+                <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-slide-up border-l-0" style="animation-delay: 0.3s;">
                     <div class="flex items-center mb-6">
                         <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-4">
                             <i class="fas fa-box text-orange-600 text-xl"></i>
@@ -230,9 +230,9 @@ ob_start();
                         <p class="text-gray-600 mb-4">Choose your preferred packaging:</p>
                         
                         <!-- Standard Packaging -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-orange-500 hover:shadow-lg transition-all duration-300">
+                        <label class="relative rounded-xl p-6 cursor-pointer border-2 border-transparent hover:border-orange-200 transition-colors packaging-option">
                             <input type="radio" name="packaging_option" value="standard" checked
-                                   class="absolute top-4 right-4 w-5 h-5 text-orange-600 focus:ring-orange-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-orange-600 focus:ring-orange-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-shopping-bag text-orange-600 text-xl"></i>
@@ -246,9 +246,9 @@ ob_start();
                         </label>
 
                         <!-- Eco-friendly Packaging -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-green-500 hover:shadow-lg transition-all duration-300">
+                        <label class="relative rounded-xl p-6 cursor-pointer border-2 border-transparent hover:border-green-200 transition-colors packaging-option">
                             <input type="radio" name="packaging_option" value="eco_friendly"
-                                   class="absolute top-4 right-4 w-5 h-5 text-green-600 focus:ring-green-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-600 focus:ring-green-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-leaf text-green-600 text-xl"></i>
@@ -262,9 +262,9 @@ ob_start();
                         </label>
 
                         <!-- Reusable Bag Option -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all duration-300">
+                        <label class="relative rounded-xl p-6 cursor-pointer border-2 border-transparent hover:border-blue-200 transition-colors packaging-option">
                             <input type="radio" name="packaging_option" value="reusable_bag"
-                                   class="absolute top-4 right-4 w-5 h-5 text-blue-600 focus:ring-blue-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-blue-600 focus:ring-blue-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-recycle text-blue-600 text-xl"></i>
@@ -288,7 +288,7 @@ ob_start();
                 </div>
 
                 <!-- Payment Method -->
-                <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-slide-up" style="animation-delay: 0.4s;">
+                <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 animate-slide-up border-l-0" style="animation-delay: 0.4s;">
                     <div class="flex items-center mb-6">
                         <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-4">
                             <i class="fas fa-credit-card text-purple-600 text-xl"></i>
@@ -298,9 +298,9 @@ ob_start();
 
                     <div class="space-y-4">
                         <!-- Cash on Delivery -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-green-500 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-all duration-300">
+                        <label class="relative border-2 border-green-500 rounded-xl p-6 cursor-pointer payment-option">
                             <input type="radio" name="payment_method" value="cod" checked
-                                   class="absolute top-4 right-4 w-5 h-5 text-green-600 focus:ring-green-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-600 focus:ring-green-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
@@ -317,9 +317,9 @@ ob_start();
                         </label>
 
                         <!-- bKash Payment -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-pink-500 hover:shadow-lg transition-all duration-300">
+                        <label class="relative rounded-xl p-6 cursor-pointer border-2 border-transparent hover:border-pink-200 transition-colors payment-option">
                             <input type="radio" name="payment_method" value="bkash"
-                                   class="absolute top-4 right-4 w-5 h-5 text-pink-600 focus:ring-pink-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-pink-600 focus:ring-pink-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-mobile-alt text-pink-600 text-xl"></i>
@@ -333,7 +333,7 @@ ob_start();
                                             <p class="font-semibold text-pink-800 mb-2">📱 Payment Instructions:</p>
                                             <div class="space-y-1 text-xs">
                                                 <p>1. Send money to: <span class="font-mono font-bold text-pink-600"><?php echo $paymentConfig['bkash']['account_number']; ?></span></p>
-                                                <p>2. Amount: <span class="font-bold">৳<span id="bkash-amount"><?php echo number_format($finalTotal + 60, 2); ?></span></span></p>
+                                                <p>2. Amount: <span class="font-bold">৳<span id="bkash-amount"><?php echo number_format($totalWithDelivery ?? ($finalTotal + 60), 2); ?></span></span></p>
                                                 <p>3. Reference: <span class="font-mono">ORDER-<?php echo time(); ?></span></p>
                                                 <p>4. After payment, you'll receive confirmation</p>
                                             </div>
@@ -350,9 +350,9 @@ ob_start();
                         </label>
 
                         <!-- Nagad Payment -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-orange-500 hover:shadow-lg transition-all duration-300">
+                        <label class="relative rounded-xl p-6 cursor-pointer border-2 border-transparent hover:border-orange-200 transition-colors payment-option">
                             <input type="radio" name="payment_method" value="nagad"
-                                   class="absolute top-4 right-4 w-5 h-5 text-orange-600 focus:ring-orange-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-orange-600 focus:ring-orange-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-wallet text-orange-600 text-xl"></i>
@@ -366,7 +366,7 @@ ob_start();
                                             <p class="font-semibold text-orange-800 mb-2">💳 Payment Instructions:</p>
                                             <div class="space-y-1 text-xs">
                                                 <p>1. Send money to: <span class="font-mono font-bold text-orange-600"><?php echo $paymentConfig['nagad']['account_number']; ?></span></p>
-                                                <p>2. Amount: <span class="font-bold">৳<span id="nagad-amount"><?php echo number_format($finalTotal + 60, 2); ?></span></span></p>
+                                                <p>2. Amount: <span class="font-bold">৳<span id="nagad-amount"><?php echo number_format($totalWithDelivery ?? ($finalTotal + 60), 2); ?></span></span></p>
                                                 <p>3. Reference: <span class="font-mono">ORDER-<?php echo time(); ?></span></p>
                                                 <p>4. After payment, you'll receive confirmation</p>
                                             </div>
@@ -383,9 +383,9 @@ ob_start();
                         </label>
 
                         <!-- Card Payment -->
-                        <label class="relative bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 cursor-pointer hover:border-purple-500 hover:shadow-lg transition-all duration-300">
+                        <label class="relative rounded-xl p-6 cursor-pointer border-2 border-transparent hover:border-purple-200 transition-colors payment-option">
                             <input type="radio" name="payment_method" value="card"
-                                   class="absolute top-4 right-4 w-5 h-5 text-purple-600 focus:ring-purple-500">
+                                   class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-purple-600 focus:ring-purple-500">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-4">
                                     <i class="fas fa-credit-card text-purple-600 text-xl"></i>
@@ -399,7 +399,7 @@ ob_start();
                                             <p class="font-semibold text-purple-800 mb-2">💳 Payment Instructions:</p>
                                             <div class="space-y-1 text-xs">
                                                 <p>1. You'll be redirected to secure payment page</p>
-                                                <p>2. Amount: <span class="font-bold">৳<span id="card-amount"><?php echo number_format($finalTotal + 60, 2); ?></span></span></p>
+                                                <p>2. Amount: <span class="font-bold">৳<span id="card-amount"><?php echo number_format($totalWithDelivery ?? ($finalTotal + 60), 2); ?></span></span></p>
                                                 <p>3. Enter your card details securely</p>
                                                 <p>4. Complete payment and return to confirm</p>
                                             </div>
@@ -468,11 +468,17 @@ ob_start();
                         
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">Delivery Fee</span>
-                            <span class="text-gray-900 font-medium">৳50.00</span>
+                            <span class="text-gray-900 font-medium" id="delivery-fee">
+                                <?php if (isset($deliveryFee) && $deliveryFee > 0): ?>
+                                    ৳<?php echo number_format($deliveryFee, 2); ?>
+                                <?php else: ?>
+                                    <span class="text-green-600">Free</span>
+                                <?php endif; ?>
+                            </span>
                         </div>
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">Service Charge</span>
-                            <span class="text-gray-900 font-medium">৳10.00</span>
+                            <span class="text-gray-900 font-medium">৳<?php echo number_format($serviceCharge ?? 10.00, 2); ?></span>
                         </div>
                         <div class="flex justify-between text-sm" id="packaging-cost-row" style="display: none;">
                             <span class="text-gray-600">Packaging Cost</span>
@@ -481,12 +487,12 @@ ob_start();
                         <hr class="my-3 border-gray-300">
                         <div class="flex justify-between text-lg font-bold">
                             <span class="text-gray-900">Total Amount</span>
-                            <span class="text-green-600" id="total-amount">৳<?php echo number_format($finalTotal + 60, 2); ?></span>
+                            <span class="text-green-600" id="total-amount">৳<?php echo number_format($totalWithDelivery ?? ($finalTotal + 60), 2); ?></span>
                         </div>
                     </div>
 
                     <div class="mt-6 space-y-3">
-                        <button type="submit" id="place-order-btn" class="w-full flex justify-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-4 focus:ring-green-200 transform hover:scale-105 transition-all duration-300">
+                        <button type="submit" id="place-order-btn" class="w-full flex justify-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-4 focus:ring-green-200 transform hover:scale-105 ">
                             <i class="fas fa-check-circle mr-2"></i>
                             <span id="btn-text">Place Order</span>
                         </button>
@@ -520,7 +526,7 @@ ob_start();
                             </div>
                         </div>
 
-                        <a href="/cart" class="w-full flex justify-center py-3 px-6 border-2 border-gray-300 rounded-xl text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-200 transition-all duration-300 text-center">
+                        <a href="/cart" class="w-full flex justify-center py-3 px-6 border-2 border-gray-300 rounded-xl text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-200  text-center">
                             <i class="fas fa-arrow-left mr-2"></i>
                             Back to Cart
                         </a>
@@ -544,7 +550,80 @@ ob_start();
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🛒 Checkout page loaded');
-    
+
+    // Add visual indication for selected radio options
+    function updateSelectedOptions() {
+        // Address options
+        document.querySelectorAll('.address-option').forEach(option => {
+            const radio = option.querySelector('input[type="radio"]');
+            if (radio.checked) {
+                option.classList.add('border-blue-500', 'bg-blue-50');
+                option.classList.remove('border-transparent');
+            } else {
+                option.classList.remove('border-blue-500', 'bg-blue-50');
+                option.classList.add('border-transparent');
+            }
+        });
+
+        // Delivery options
+        document.querySelectorAll('.delivery-option').forEach(option => {
+            const radio = option.querySelector('input[type="radio"]');
+            if (radio.checked) {
+                option.classList.add('border-green-500', 'bg-green-50');
+                option.classList.remove('border-transparent');
+            } else {
+                option.classList.remove('border-green-500', 'bg-green-50');
+                option.classList.add('border-transparent');
+            }
+        });
+
+        // Packaging options
+        document.querySelectorAll('.packaging-option').forEach(option => {
+            const radio = option.querySelector('input[type="radio"]');
+            if (radio.checked) {
+                if (option.querySelector('input[value="standard"]')) {
+                    option.classList.add('border-orange-500', 'bg-orange-50');
+                } else if (option.querySelector('input[value="eco_friendly"]')) {
+                    option.classList.add('border-green-500', 'bg-green-50');
+                } else if (option.querySelector('input[value="reusable_bag"]')) {
+                    option.classList.add('border-blue-500', 'bg-blue-50');
+                }
+                option.classList.remove('border-transparent');
+            } else {
+                option.classList.remove('border-orange-500', 'border-green-500', 'border-blue-500', 'bg-orange-50', 'bg-green-50', 'bg-blue-50');
+                option.classList.add('border-transparent');
+            }
+        });
+
+        // Payment options
+        document.querySelectorAll('.payment-option').forEach(option => {
+            const radio = option.querySelector('input[type="radio"]');
+            if (radio.checked) {
+                if (option.querySelector('input[value="cod"]')) {
+                    option.classList.add('border-green-500', 'bg-green-50');
+                } else if (option.querySelector('input[value="bkash"]')) {
+                    option.classList.add('border-pink-500', 'bg-pink-50');
+                } else if (option.querySelector('input[value="nagad"]')) {
+                    option.classList.add('border-orange-500', 'bg-orange-50');
+                } else if (option.querySelector('input[value="card"]')) {
+                    option.classList.add('border-purple-500', 'bg-purple-50');
+                }
+                option.classList.remove('border-transparent');
+            } else {
+                option.classList.remove('border-green-500', 'border-pink-500', 'border-orange-500', 'border-purple-500', 'bg-green-50', 'bg-pink-50', 'bg-orange-50', 'bg-purple-50');
+                option.classList.add('border-transparent');
+            }
+        });
+    }
+
+    // Add event listeners to all radio buttons
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', updateSelectedOptions);
+    });
+
+    // Initialize selected options
+    updateSelectedOptions();
+
     const form = document.getElementById('checkout-form');
     const submitBtn = document.getElementById('place-order-btn');
     let isSubmitting = false;
@@ -564,7 +643,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalAmount = document.getElementById('total-amount');
     
     // Base total (subtotal + delivery + service - discount)
-    const baseTotal = <?php echo $finalTotal + 60; ?>;
+    const baseTotal = <?php echo $totalWithDelivery ?? ($finalTotal + 60); ?>;
+    const freeDeliveryThreshold = <?php echo $freeDeliveryThreshold ?? 3000; ?>;
     
     function updatePackagingCost() {
         const selectedOption = document.querySelector('input[name="packaging_option"]:checked');
@@ -635,7 +715,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 data[key] = value;
             }
             
+            // Validate required fields
+            if (!data.delivery_slot) {
+                alert('Please select a delivery slot');
+                isSubmitting = false;
+                return;
+            }
+            
+            if (!data.address_id && (!data.new_address_line1 || !data.new_city)) {
+                alert('Please select an address or enter a new delivery address');
+                isSubmitting = false;
+                return;
+            }
+            
+            if (!data.payment_method) {
+                alert('Please select a payment method');
+                isSubmitting = false;
+                return;
+            }
+            
             console.log('🛒 Form data:', data);
+            console.log('🛒 Cart items count:', <?php echo count($cartItems); ?>);
+            
+            if (<?php echo count($cartItems); ?> === 0) {
+                alert('Your cart is empty. Please add items to cart first.');
+                isSubmitting = false;
+                window.location.href = '/cart';
+                return;
+            }
+            
+            // Normalize payment method value
+            const paymentMethodMap = {
+                'cod': 'cod',
+                'cash_on_delivery': 'cod',
+                'bkash': 'bkash',
+                'nagad': 'nagad',
+                'card': 'card'
+            };
+            data.payment_method = paymentMethodMap[data.payment_method.toLowerCase()] || 'cod';
+            console.log('🛒 Normalized payment method:', data.payment_method);
+            
+            // Get packaging option
+            const packagingOptionInput = document.querySelector('input[name="packaging_option"]:checked');
+            if (packagingOptionInput) {
+                data.packaging_option = packagingOptionInput.value;
+                console.log('📦 Packaging option:', data.packaging_option);
+            } else {
+                data.packaging_option = 'standard'; // Default to standard
+            }
             
             // Show loading state
             if (submitBtn) {
@@ -656,32 +783,100 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        cart_items: <?php echo json_encode($cartItems); ?>,
-                        delivery_address_id: data.address_id,
+                        cart_items: <?php 
+                            // Ensure cart items have proper structure
+                            // cart_items table has: id, user_id, product_id, quantity
+                            $formattedCartItems = [];
+                            foreach ($cartItems as $item) {
+                                // The cart_items query returns ci.* which includes product_id
+                                $productId = isset($item['product_id']) ? intval($item['product_id']) : 0;
+                                if ($productId > 0) {
+                                    $formattedCartItems[] = [
+                                        'product_id' => $productId,
+                                        'quantity' => intval($item['quantity'] ?? 1)
+                                    ];
+                                }
+                            }
+                            if (empty($formattedCartItems)) {
+                                error_log("Warning: No valid cart items found to send to API");
+                            }
+                            echo json_encode($formattedCartItems); 
+                        ?>,
+                        delivery_address_id: data.address_id || null,
                         delivery_slot: data.delivery_slot,
                         payment_method: data.payment_method,
-                        delivery_fee: 50.00,
-                        discount: <?php echo $discount; ?>
+                        packaging_option: data.packaging_option || 'standard',
+                        delivery_fee: <?php echo isset($deliveryFee) ? number_format($deliveryFee, 2) : '50.00'; ?>,
+                        discount: <?php echo $discount; ?>,
+                        // New address fields (if no address_id selected)
+                        new_address_line1: data.new_address_line1 || null,
+                        new_address_line2: data.new_address_line2 || null,
+                        new_city: data.new_city || null,
+                        new_state: data.new_state || null,
+                        new_zip_code: data.new_zip_code || null,
+                        new_country: data.new_country || 'Bangladesh',
+                        new_address_type: data.new_address_type || 'home',
+                        new_is_default: data.new_is_default || false
                     })
                 });
                 
-                const orderData = await orderResponse.json();
+                // Get response text first (can only be read once)
+                const orderResponseText = await orderResponse.text();
+                
+                // Check if response is ok
+                if (!orderResponse.ok) {
+                    console.error('🛒 Order creation failed:', orderResponse.status, orderResponseText);
+                    throw new Error(`Server error (${orderResponse.status}): ${orderResponseText || 'Unknown error'}`);
+                }
+                
+                // Check content type
+                const contentType1 = orderResponse.headers.get('content-type');
+                if (!contentType1 || !contentType1.includes('application/json')) {
+                    console.error('🛒 Invalid response type:', contentType1, orderResponseText);
+                    throw new Error('Server returned invalid response format. Expected JSON.');
+                }
+                
+                // Parse JSON with error handling
+                let orderData;
+                try {
+                    if (!orderResponseText || orderResponseText.trim() === '') {
+                        throw new Error('Empty response from server');
+                    }
+                    orderData = JSON.parse(orderResponseText);
+                } catch (parseError) {
+                    console.error('🛒 JSON parse error:', parseError);
+                    throw new Error(`Invalid JSON response: ${orderResponseText || parseError.message}`);
+                }
+                
                 console.log('🛒 Order response:', orderData);
                 
-                if (!orderData.success) {
-                    throw new Error(orderData.error || 'Failed to create order');
+                if (!orderData || !orderData.success) {
+                    throw new Error(orderData?.error || 'Failed to create order');
                 }
+                
+                console.log('✅ Order created successfully! Order ID:', orderData.order_id);
                 
                 // Step 2: Handle payment based on method
                 if (data.payment_method === 'cod') {
                     // Cash on Delivery - no payment processing needed
+                    // Show success message briefly, then redirect to homepage
                     showPaymentSuccess(orderData.order_id, null, 'Order placed successfully! Pay cash on delivery.');
+                    
                     // Keep button disabled to prevent duplicate orders
                     if (submitBtn) {
                         submitBtn.disabled = true;
                         const btnTextEl = document.getElementById('btn-text');
                         if (btnTextEl) btnTextEl.textContent = 'Order Placed';
                     }
+                    
+                    // Redirect to homepage with success message after 2 seconds
+                    console.log('🛒 Redirecting to homepage with order ID:', orderData.order_id);
+                    console.log('✅ Order placed successfully! Order will be visible in database.');
+                    setTimeout(() => {
+                        const redirectUrl = '/?order_success=' + encodeURIComponent(orderData.order_id);
+                        console.log('🛒 Redirect URL:', redirectUrl);
+                        window.location.href = redirectUrl;
+                    }, 2000);
                 } else {
                     // Online payment - initiate payment
                     console.log('🛒 Initiating payment...');
@@ -698,7 +893,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                     });
                     
-                    const paymentData = await paymentResponse.json();
+                    // Get response text first (can only be read once)
+                    const paymentResponseText = await paymentResponse.text();
+                    
+                    // Check if response is ok
+                    if (!paymentResponse.ok) {
+                        console.error('🛒 Payment initiation failed:', paymentResponse.status, paymentResponseText);
+                        throw new Error(`Payment error (${paymentResponse.status}): ${paymentResponseText || 'Unknown error'}`);
+                    }
+                    
+                    // Check content type
+                    const contentType2 = paymentResponse.headers.get('content-type');
+                    if (!contentType2 || !contentType2.includes('application/json')) {
+                        console.error('🛒 Invalid payment response type:', contentType2, paymentResponseText);
+                        throw new Error('Server returned invalid response format. Expected JSON.');
+                    }
+                    
+                    // Parse JSON with error handling
+                    let paymentData;
+                    try {
+                        if (!paymentResponseText || paymentResponseText.trim() === '') {
+                            throw new Error('Empty response from server');
+                        }
+                        paymentData = JSON.parse(paymentResponseText);
+                    } catch (parseError) {
+                        console.error('🛒 Payment JSON parse error:', parseError);
+                        throw new Error(`Invalid JSON response: ${paymentResponseText || parseError.message}`);
+                    }
+                    
                     console.log('🛒 Payment response:', paymentData);
                     
                     if (!paymentData.success) {
@@ -720,25 +942,83 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                     });
                     
-                    const confirmData = await confirmResponse.json();
+                    // Get response text first (can only be read once)
+                    const confirmResponseText = await confirmResponse.text();
+                    
+                    // Check if response is ok
+                    if (!confirmResponse.ok) {
+                        console.error('🛒 Payment confirmation failed:', confirmResponse.status, confirmResponseText);
+                        throw new Error(`Payment confirmation error (${confirmResponse.status}): ${confirmResponseText || 'Unknown error'}`);
+                    }
+                    
+                    // Check content type
+                    const contentType3 = confirmResponse.headers.get('content-type');
+                    if (!contentType3 || !contentType3.includes('application/json')) {
+                        console.error('🛒 Invalid confirmation response type:', contentType3, confirmResponseText);
+                        throw new Error('Server returned invalid response format. Expected JSON.');
+                    }
+                    
+                    // Parse JSON with error handling
+                    let confirmData;
+                    try {
+                        if (!confirmResponseText || confirmResponseText.trim() === '') {
+                            throw new Error('Empty response from server');
+                        }
+                        confirmData = JSON.parse(confirmResponseText);
+                    } catch (parseError) {
+                        console.error('🛒 Confirmation JSON parse error:', parseError);
+                        throw new Error(`Invalid JSON response: ${confirmResponseText || parseError.message}`);
+                    }
+                    
                     console.log('🛒 Confirmation response:', confirmData);
                     
                     if (confirmData.success && confirmData.paid) {
                         showPaymentSuccess(orderData.order_id, confirmData.transaction_id, 'Payment successful! We will deliver your order in your selected slot.');
+                        
                         // Keep button disabled after success
                         if (submitBtn) {
                             submitBtn.disabled = true;
                             const btnTextEl = document.getElementById('btn-text');
                             if (btnTextEl) btnTextEl.textContent = 'Payment Successful';
                         }
+                        
+                        // Redirect to homepage with success message after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = '/?order_success=' + orderData.order_id + '&payment_success=1';
+                        }, 2000);
                     } else {
                         throw new Error(confirmData.message || 'Payment confirmation failed');
                     }
                 }
                 
-            } catch (error) {
-                console.error('🛒 Error:', error);
-                showPaymentError(error.message);
+                } catch (error) {
+                console.error('🛒 ===== ERROR OCCURRED =====');
+                console.error('🛒 Error type:', error.constructor.name);
+                console.error('🛒 Error message:', error.message);
+                console.error('🛒 Error stack:', error.stack);
+                
+                // Show user-friendly error message
+                let errorMessage = error.message || 'An error occurred while processing your order';
+                
+                // Handle specific error types
+                if (error.message.includes('JSON') || error.message.includes('Unexpected end')) {
+                    errorMessage = 'Server communication error. Please try again or contact support.';
+                } else if (error.message.includes('fetch')) {
+                    errorMessage = 'Network error. Please check your connection and try again.';
+                } else if (error.message.includes('status')) {
+                    errorMessage = 'Server error occurred. Please try again later.';
+                } else if (error.message.includes('Cart is empty')) {
+                    errorMessage = 'Your cart is empty. Please add items to cart first.';
+                    setTimeout(() => {
+                        window.location.href = '/cart';
+                    }, 2000);
+                }
+                
+                // Show error in UI
+                showPaymentError(errorMessage);
+                
+                // Also alert for immediate visibility
+                alert('Order Failed: ' + errorMessage);
             } finally {
                 // Reset button state only if not already completed successfully
                 const successVisible = document.getElementById('payment-success') && !document.getElementById('payment-success').classList.contains('hidden');

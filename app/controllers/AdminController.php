@@ -168,21 +168,6 @@ class AdminController extends BaseController {
         ]);
     }
 
-    public function drivers() {
-        $this->requireAdmin();
-        
-        // Get admin data for layout
-        $adminData = $this->adminMiddleware->getAdminData();
-        $adminFullName = $this->adminMiddleware->getAdminFullName();
-        $adminInitials = $this->adminMiddleware->getAdminInitials();
-        
-        $this->render('admin/drivers', [
-            'adminData' => $adminData,
-            'adminFullName' => $adminFullName,
-            'adminInitials' => $adminInitials
-        ]);
-    }
-
     public function orders() {
         // Get filter parameters from GET request
         $status = trim($_GET['status'] ?? 'all');
@@ -288,9 +273,8 @@ class AdminController extends BaseController {
         error_log("Count query: " . $countSql);
         $stmt = $this->pdo->prepare($countSql);
         $stmt->execute($params);
-        $countResult = $stmt->fetch();
-        $total = (int)($countResult['total'] ?? 0); // Ensure integer type
-        $totalPages = $total > 0 ? (int)ceil($total / $limit) : 1; // Ensure integer type and minimum 1
+        $total = $stmt->fetch()['total'];
+        $totalPages = ceil($total / $limit);
         
         error_log("Total orders: $total, Total pages: $totalPages");
 
@@ -304,9 +288,9 @@ class AdminController extends BaseController {
 
         $this->render('admin/orders', [
             'orders' => $orders,
-            'currentPage' => (int)$page, // Ensure integer type
-            'totalPages' => (int)$totalPages, // Ensure integer type
-            'total' => (int)$total, // Total number of orders for pagination display - ensure integer
+            'currentPage' => $page,
+            'totalPages' => $totalPages,
+            'total' => $total, // Total number of orders for pagination display
             'status' => $status,
             'search' => $search,
             'dateFrom' => $dateFrom,
@@ -1772,6 +1756,13 @@ class AdminController extends BaseController {
         }
         
         return $date->format('Y-m-d');
+    }
+
+    public function drivers() {
+        $this->requireAdmin();
+        
+        // Render the drivers management page
+        $this->render('admin/drivers', []);
     }
 }
 ?>

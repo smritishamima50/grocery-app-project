@@ -19,7 +19,7 @@ class DietHelper {
     /**
      * Save or update user diet profile
      */
-    public function saveDietProfile($userId, $dietGoal, $calorieTarget, $currentWeight = null, $targetWeight = null, $height = null, $age = null, $activityLevel = 'moderately_active', $preferences = null) {
+    public function saveDietProfile($userId, $dietGoal, $calorieTarget, $currentWeight = null, $targetWeight = null, $height = null, $age = null, $activityLevel = 'moderately_active', $preferences = null, $familyMembers = null) {
         try {
             // Start transaction
             $this->pdo->beginTransaction();
@@ -35,10 +35,10 @@ class DietHelper {
                 $bmi = round($currentWeight / ($heightInMeters * $heightInMeters), 1);
             }
 
-            // Insert new active profile
-            $stmt = $this->pdo->prepare("INSERT INTO user_diet_profiles (user_id, diet_goal, calorie_target, current_weight, target_weight, height, age, activity_level, bmi, dietary_preferences, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)");
+            // Insert new active profile (including family_members)
+            $stmt = $this->pdo->prepare("INSERT INTO user_diet_profiles (user_id, diet_goal, calorie_target, current_weight, target_weight, height, age, activity_level, bmi, dietary_preferences, family_members, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)");
             $preferencesJson = $preferences ? json_encode($preferences) : null;
-            $stmt->execute([$userId, $dietGoal, $calorieTarget, $currentWeight, $targetWeight, $height, $age, $activityLevel, $bmi, $preferencesJson]);
+            $stmt->execute([$userId, $dietGoal, $calorieTarget, $currentWeight, $targetWeight, $height, $age, $activityLevel, $bmi, $preferencesJson, $familyMembers]);
             
             $newId = $this->pdo->lastInsertId();
             
@@ -63,12 +63,13 @@ class DietHelper {
         $limit = (int)$limit;
         
         if (!$profile) {
-            // Return all active products if no diet profile (newest first)
+            // Return all active products if no diet profile (newest first), excluding Home Cleaning
             $stmt = $this->pdo->prepare("
                 SELECT p.*, c.name as category_name 
                 FROM products p 
                 LEFT JOIN categories c ON p.category_id = c.id 
                 WHERE p.is_active = 1 AND p.stock_quantity > 0 
+                AND (c.name IS NULL OR LOWER(TRIM(c.name)) != 'home cleaning')
                 ORDER BY p.created_at DESC, p.id DESC
                 LIMIT $limit
             ");
@@ -81,6 +82,9 @@ class DietHelper {
 
         $whereClauses = [];
         $params = [];
+
+        // Exclude Home Cleaning products from recommendations
+        $whereClauses[] = "(c.name IS NULL OR LOWER(TRIM(c.name)) != 'home cleaning')";
 
         // Filter based on diet goal
         switch ($dietGoal) {
@@ -106,9 +110,7 @@ class DietHelper {
 
         // Base query - always filter for active products
         $baseWhere = "p.is_active = 1 AND p.stock_quantity > 0";
-        $whereClause = !empty($whereClauses) 
-            ? "WHERE " . implode(" AND ", $whereClauses) . " AND $baseWhere" 
-            : "WHERE $baseWhere";
+        $whereClause = "WHERE " . implode(" AND ", $whereClauses) . " AND $baseWhere";
 
         // Order by relevance to diet goal
         $orderBy = $this->getOrderByClause($dietGoal);
@@ -140,29 +142,114 @@ class DietHelper {
 
     /**
      * Check if product matches diet profile
+     * Returns true if suitable, false if not suitable, null for caution
+     * PRIMARY CRITERIA: 300 kcal threshold (calories take priority)
      */
     public function isProductSuitable($product, $userId) {
+        // Exclude Home Cleaning products from diet recommendations (they are not food items)
+        if (isset($product['category_name']) && strtolower(trim($product['category_name'])) === 'home cleaning') {
+            return false;
+        }
+        
         $profile = $this->getUserDietProfile($userId);
+        $productCalories = isset($product['calories_per_unit']) ? (float)$product['calories_per_unit'] : 0;
+        
+        // PRIMARY CHECK: Calorie threshold (300 kcal) takes priority for ALL diet goals
+        if ($productCalories > 300) {
+            return false; // Above 300 kcal - AVOID (regardless of diet goal)
+        } elseif ($productCalories == 300) {
+            return null; // Exactly 300 kcal - CAUTION (regardless of diet goal)
+        }
+        // Below 300 kcal - proceed with diet-specific checks
         
         if (!$profile) {
-            return true; // No restrictions if no profile
+            // No profile - below 300 kcal is recommended
+            return true;
         }
 
         $dietGoal = $profile['diet_goal'];
+        $calorieTarget = intval($profile['calorie_target'] ?? 2000);
 
+        // Since calories are below 300, check diet-specific requirements
         switch ($dietGoal) {
             case 'weight_loss':
-                return $product['is_weight_loss_friendly'] && $product['calories_per_unit'] <= 200;
-            case 'muscle_gain':
-                return $product['is_muscle_gain_friendly'];
-            case 'diabetes_friendly':
-                return $product['is_diabetes_friendly'] && $product['carbs_per_unit'] <= 25;
-            case 'low_sodium':
-                return $product['sodium_per_unit'] <= 150;
-            case 'vegetarian':
-                return $product['is_vegetarian'];
-            default:
+                // For weight loss, if calories are already below 300, check if it's weight loss friendly
+                // But if calories are very low (below 200), it's generally suitable
+                if ($productCalories > 200) {
+                    // Between 200-300 kcal - check flag
+                    $isWeightLossFriendly = isset($product['is_weight_loss_friendly']) ? (bool)$product['is_weight_loss_friendly'] : false;
+                    return $isWeightLossFriendly;
+                }
+                // Below 200 kcal is suitable for weight loss
                 return true;
+                
+            case 'muscle_gain':
+                // For muscle gain, check protein content but calories below 300 are still okay
+                $protein = isset($product['protein_per_unit']) ? (float)$product['protein_per_unit'] : 0;
+                if ($protein < 5) {
+                    // Low protein but calories are acceptable - return null (caution) not false
+                    return null; // Caution: low protein but acceptable calories
+                }
+                // Good protein or calories are fine
+                return true;
+                
+            case 'diabetes_friendly':
+                // For diabetes, check carbs but calories below 300 are still acceptable
+                $carbs = isset($product['carbs_per_unit']) ? (float)$product['carbs_per_unit'] : 0;
+                if ($carbs > 25) {
+                    return false; // High carbs - not suitable even with low calories
+                } elseif ($carbs > 15) {
+                    return null; // Moderate carbs - caution
+                }
+                // Low carbs and low calories - suitable
+                return true;
+                
+            case 'low_sodium':
+                // For low sodium, check sodium content
+                $sodium = isset($product['sodium_per_unit']) ? (float)$product['sodium_per_unit'] : 0;
+                if ($sodium > 300) {
+                    return false; // High sodium - not suitable
+                } elseif ($sodium > 150) {
+                    return null; // Moderate sodium - caution
+                }
+                // Low sodium and low calories - suitable
+                return true;
+                
+            case 'vegetarian':
+                // For vegetarian, check if it's vegetarian
+                $isVegetarian = isset($product['is_vegetarian']) ? (bool)$product['is_vegetarian'] : false;
+                if (!$isVegetarian) {
+                    return false; // Not vegetarian - not suitable
+                }
+                // Vegetarian and low calories - suitable
+                return true;
+                
+            case 'general':
+            default:
+                // For general diet, below 300 kcal is recommended
+                return true;
+        }
+    }
+    
+    /**
+     * Analyze product calories and return recommendation based on 300 kcal threshold
+     */
+    public function analyzeProductCalories($product, $userId) {
+        $profile = $this->getUserDietProfile($userId);
+        $calorieTarget = $profile ? intval($profile['calorie_target'] ?? 2000) : 2000;
+        $productCalories = floatval($product['calories_per_unit'] ?? 0);
+        
+        if ($productCalories <= 0) {
+            return ['status' => 'neutral', 'message' => 'No calorie information available'];
+        }
+        
+        // Use 300 kcal as the threshold
+        if ($productCalories > 300) {
+            return ['status' => 'avoid', 'message' => 'High calorie product - above 300 kcal'];
+        } elseif ($productCalories == 300) {
+            return ['status' => 'caution', 'message' => 'Product is 300 kcal - use caution'];
+        } else {
+            return ['status' => 'recommended', 'message' => 'Product is below 300 kcal - recommended'];
         }
     }
 

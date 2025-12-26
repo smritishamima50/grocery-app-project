@@ -53,10 +53,10 @@ if (isset($_GET['debug']) && $_GET['debug'] == '1') {
                 </button>
             </form>
 
-            <select onchange="filterByCategory(this.value)" class="px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+            <select onchange="filterByCategory(this.value)" class="px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500" id="category-filter">
                 <option value="">All Categories</option>
                 <?php foreach ($categories as $cat): ?>
-                    <option value="<?php echo $cat['id']; ?>" <?php echo ($category == $cat['id']) ? 'selected' : ''; ?>>
+                    <option value="<?php echo intval($cat['id']); ?>" <?php echo ($category && intval($category) === intval($cat['id'])) ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars($cat['name']); ?>
                     </option>
                 <?php endforeach; ?>
@@ -150,7 +150,7 @@ if (isset($_GET['debug']) && $_GET['debug'] == '1') {
                             echo "<!-- Debug: Category: '" . htmlspecialchars($product['category_name']) . "' -->";
                         }
                         ?>
-                        <?php if (isset($product['calories_per_unit']) && $product['calories_per_unit'] > 0 && trim($product['category_name']) !== 'Home Cleaning'): ?>
+                        <?php if (isset($product['calories_per_unit']) && $product['calories_per_unit'] > 0 && isset($product['category_name']) && strtolower(trim($product['category_name'])) !== 'home cleaning'): ?>
                             <div class="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3 mb-4">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-4">
@@ -184,6 +184,13 @@ if (isset($_GET['debug']) && $_GET['debug'] == '1') {
                                     data-original-text="<i class='fas fa-cart-plus mr-2'></i>Add to Cart">
                                 <i class="fas fa-cart-plus mr-2"></i>Add to Cart
                             </button>
+                            <?php if (isset($_SESSION['user_id'])): ?>
+                            <button class="bg-red-100 text-red-600 hover:bg-red-200 px-4 py-3 rounded-xl transition-all duration-300 add-to-wishlist"
+                                    data-product-id="<?php echo $product['id']; ?>"
+                                    title="Add to Wishlist">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                            <?php endif; ?>
                             <a href="/products/<?php echo $product['id']; ?>"
                                class="bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 hover:text-green-600 transition-all duration-300 hover-lift">
                                 <i class="fas fa-eye text-lg"></i>
@@ -226,13 +233,24 @@ if (isset($_GET['debug']) && $_GET['debug'] == '1') {
 
 <script>
 function filterByCategory(categoryId) {
+    console.log('🔍 Filtering by category:', categoryId);
     const url = new URL(window.location);
-    if (categoryId) {
-        url.searchParams.set('category', categoryId);
+    if (categoryId && categoryId !== '' && categoryId !== '0') {
+        // Ensure categoryId is a valid integer
+        const categoryInt = parseInt(categoryId);
+        if (!isNaN(categoryInt) && categoryInt > 0) {
+            url.searchParams.set('category', categoryInt);
+            console.log('🔍 Setting category filter to:', categoryInt);
+        } else {
+            console.warn('🔍 Invalid category ID:', categoryId);
+            url.searchParams.delete('category');
+        }
     } else {
         url.searchParams.delete('category');
+        console.log('🔍 Clearing category filter');
     }
-    url.searchParams.delete('page'); // Reset to first page
+    url.searchParams.delete('page'); // Reset to first page when filtering
+    console.log('🔍 Navigating to:', url.toString());
     window.location.href = url.toString();
 }
 
@@ -364,9 +382,111 @@ function updateCartCount() {
         .catch(error => console.error('Error updating cart count:', error));
 }
 
-// Initialize cart count on page load
+// Add to wishlist functionality for products listing page
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('❤️ Setting up wishlist buttons on products page');
+    
+    document.querySelectorAll('.add-to-wishlist').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('❤️ ===== ADD TO WISHLIST CLICKED (PRODUCTS PAGE) =====');
+            
+            const productId = this.getAttribute('data-product-id');
+            const originalContent = this.innerHTML;
+            
+            console.log('❤️ Product ID:', productId);
+            
+            // Check if user is logged in
+            <?php if (!isset($_SESSION['user_id'])): ?>
+                console.log('❌ User not logged in');
+                showToast('Please login to add items to wishlist', 'warning');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                return;
+            <?php else: ?>
+                console.log('✅ User is logged in with ID: <?php echo $_SESSION['user_id']; ?>');
+            <?php endif; ?>
+            
+            // Set loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            fetch('/wishlist/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'product_id=' + productId
+            })
+            .then(response => {
+                console.log('❤️ Response received:', {
+                    status: response.status,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return response.text().then(text => {
+                    console.log('❤️ Raw response:', text);
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid JSON: ' + text.substring(0, 100));
+                    }
+                });
+            })
+            .then(data => {
+                console.log('❤️ Parsed data:', data);
+                
+                if (data.success) {
+                    console.log('✅ SUCCESS: Added to wishlist!');
+                    showToast('Successfully added to wishlist!', 'success');
+                    this.innerHTML = '<i class="fas fa-heart text-red-500"></i>';
+                    this.classList.add('bg-red-200', 'text-red-600');
+                    updateWishlistCount();
+                } else {
+                    console.error('❌ FAILED:', data.message);
+                    showToast(data.message || 'Failed to add to wishlist', 'error');
+                    this.disabled = false;
+                    this.innerHTML = originalContent;
+                }
+            })
+            .catch(error => {
+                console.error('❤️ Error:', error);
+                showToast('Error: ' + error.message, 'error');
+                this.disabled = false;
+                this.innerHTML = originalContent;
+            });
+        });
+    });
+    
+    console.log('✅ Wishlist buttons set up on products page');
+});
+
+// Update wishlist count function
+function updateWishlistCount() {
+    fetch('/wishlist/count')
+        .then(response => response.json())
+        .then(data => {
+            const wishlistBadge = document.querySelector('.wishlist-badge');
+            if (wishlistBadge) {
+                if (data.count > 0) {
+                    wishlistBadge.textContent = data.count;
+                    wishlistBadge.classList.remove('hidden');
+                } else {
+                    wishlistBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(error => console.error('Error updating wishlist count:', error));
+}
+
+// Initialize cart count and wishlist count on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateCartCount();
+    updateWishlistCount();
 });
 </script>
 

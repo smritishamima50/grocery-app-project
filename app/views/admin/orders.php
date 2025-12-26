@@ -1,7 +1,22 @@
 <?php
+// CRITICAL: Extract controller's pagination page number BEFORE we overwrite $currentPage
+// The controller's render() method calls extract($data) BEFORE including this file,
+// so controller variables (including 'currentPage' as page number) are already available.
+// We need to save the numeric page number BEFORE setting $currentPage = 'orders' for the menu.
+$paginationPageNumber = isset($currentPage) && is_numeric($currentPage) ? (int)$currentPage : (isset($page) ? (int)$page : 1);
+$totalPages = isset($totalPages) ? (int)$totalPages : 1;
+$total = isset($total) ? (int)$total : 0;
+
+// NOW set menu page name for layout navigation (this overwrites controller's $currentPage)
+// The layout uses $currentPage to highlight the active menu item
 $currentPage = 'orders';
 $pageTitle = 'Orders Management';
 include 'app/views/admin/layout.php';
+
+// Ensure pagination variables are properly typed and within valid ranges
+$paginationPageNumber = max(1, $paginationPageNumber);
+$totalPages = max(1, $totalPages);
+$total = max(0, $total);
 ?>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -319,14 +334,14 @@ include 'app/views/admin/layout.php';
                                             <option value="">Unassigned</option>
                                             <?php foreach ($drivers as $driverItem): ?>
                                                 <?php 
-                                                // Normalize driver names for comparison (handle whitespace)
-                                                $driverName = trim($driverItem['name']);
-                                                $assignedDriver = trim($order['assigned_driver'] ?? '');
-                                                $isSelected = ($assignedDriver === $driverName && $assignedDriver !== '');
+                                                // Normalize both values for comparison (case-insensitive, trimmed)
+                                                $driverName = trim(strtolower($driverItem['name'] ?? ''));
+                                                $assignedDriver = trim(strtolower($order['assigned_driver'] ?? ''));
+                                                $isSelected = ($assignedDriver === $driverName && !empty($driverName));
                                                 ?>
-                                                <option value="<?php echo htmlspecialchars($driverName); ?>" 
+                                                <option value="<?php echo htmlspecialchars($driverItem['name']); ?>" 
                                                         <?php echo $isSelected ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($driverName); ?>
+                                                    <?php echo htmlspecialchars($driverItem['name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
@@ -361,15 +376,16 @@ include 'app/views/admin/layout.php';
             <!-- Pagination -->
             <?php 
             // Calculate order range for current page
-            // Ensure all variables are properly typed (integers)
+            // All variables are already properly typed as integers from above
             $limit = 20; // Should match the limit in AdminController
-            $currentPage = isset($currentPage) ? (int)$currentPage : 1;
-            $totalPages = isset($totalPages) ? (int)$totalPages : 1;
-            $total = isset($total) ? (int)$total : 0;
             
-            $startOrder = (($currentPage - 1) * $limit) + 1;
-            $endOrder = min($currentPage * $limit, $total);
-            $totalOrders = $total;
+            // Use the properly extracted pagination variables
+            $pageNum = $paginationPageNumber;
+            $totalPagesNum = $totalPages;
+            $totalOrdersNum = $total;
+            
+            $startOrder = (($pageNum - 1) * $limit) + 1;
+            $endOrder = min($pageNum * $limit, $totalOrdersNum);
             
             // Build query string for pagination links
             $queryParams = [];
@@ -389,8 +405,8 @@ include 'app/views/admin/layout.php';
                 <div class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
                     <!-- Mobile Pagination -->
                     <div class="flex-1 flex justify-between sm:hidden">
-                        <?php if ($currentPage > 1): ?>
-                            <a href="<?php echo buildPageUrl($currentPage - 1, $queryParams); ?>" 
+                        <?php if ($pageNum > 1): ?>
+                            <a href="<?php echo buildPageUrl($pageNum - 1, $queryParams); ?>" 
                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                 <i class="fas fa-chevron-left mr-1"></i> Previous
                             </a>
@@ -399,8 +415,8 @@ include 'app/views/admin/layout.php';
                                 <i class="fas fa-chevron-left mr-1"></i> Previous
                             </span>
                         <?php endif; ?>
-                        <?php if ($currentPage < $totalPages): ?>
-                            <a href="<?php echo buildPageUrl($currentPage + 1, $queryParams); ?>" 
+                        <?php if ($pageNum < $totalPagesNum): ?>
+                            <a href="<?php echo buildPageUrl($pageNum + 1, $queryParams); ?>" 
                                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                 Next <i class="fas fa-chevron-right ml-1"></i>
                             </a>
@@ -415,16 +431,16 @@ include 'app/views/admin/layout.php';
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
                             <p class="text-sm text-gray-700 dark:text-gray-300">
-                                Showing <span class="font-medium"><?php echo $startOrder; ?>-<?php echo $endOrder; ?></span> of <span class="font-medium"><?php echo number_format($totalOrders); ?></span> orders
-                                <?php if ($totalPages > 1): ?>
-                                    (Page <span class="font-medium"><?php echo $currentPage; ?></span> of <span class="font-medium"><?php echo $totalPages; ?></span>)
+                                Showing <span class="font-medium"><?php echo $startOrder; ?>-<?php echo $endOrder; ?></span> of <span class="font-medium"><?php echo number_format($totalOrdersNum); ?></span> orders
+                                <?php if ($totalPagesNum > 1): ?>
+                                    (Page <span class="font-medium"><?php echo $pageNum; ?></span> of <span class="font-medium"><?php echo $totalPagesNum; ?></span>)
                                 <?php endif; ?>
                             </p>
                         </div>
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                                 <!-- First Page -->
-                                <?php if ($currentPage > 3 && $totalPages > 5): ?>
+                                <?php if ($pageNum > 3 && $totalPagesNum > 5): ?>
                                     <a href="<?php echo buildPageUrl(1, $queryParams); ?>" 
                                        class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600">
                                         <i class="fas fa-angle-double-left"></i>
@@ -432,8 +448,8 @@ include 'app/views/admin/layout.php';
                                 <?php endif; ?>
                                 
                                 <!-- Previous Page -->
-                                <?php if ($currentPage > 1): ?>
-                                    <a href="<?php echo buildPageUrl($currentPage - 1, $queryParams); ?>" 
+                                <?php if ($pageNum > 1): ?>
+                                    <a href="<?php echo buildPageUrl($pageNum - 1, $queryParams); ?>" 
                                        class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600">
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
@@ -442,16 +458,16 @@ include 'app/views/admin/layout.php';
                                 <!-- Page Numbers -->
                                 <?php
                                 // Calculate page range to show
-                                $startPage = max(1, $currentPage - 2);
-                                $endPage = min($totalPages, $currentPage + 2);
+                                $startPage = max(1, $pageNum - 2);
+                                $endPage = min($totalPagesNum, $pageNum + 2);
                                 
                                 // If we're near the start, show more pages at the end
-                                if ($currentPage <= 3) {
-                                    $endPage = min($totalPages, 5);
+                                if ($pageNum <= 3) {
+                                    $endPage = min($totalPagesNum, 5);
                                 }
                                 // If we're near the end, show more pages at the start
-                                if ($currentPage >= $totalPages - 2) {
-                                    $startPage = max(1, $totalPages - 4);
+                                if ($pageNum >= $totalPagesNum - 2) {
+                                    $startPage = max(1, $totalPagesNum - 4);
                                 }
                                 
                                 // Show first page if not in range
@@ -470,35 +486,35 @@ include 'app/views/admin/layout.php';
                                 <!-- Current page range -->
                                 <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
                                     <a href="<?php echo buildPageUrl($i, $queryParams); ?>" 
-                                       class="relative inline-flex items-center px-4 py-2 border text-sm font-medium <?php echo $i === $currentPage ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900 dark:border-blue-400 dark:text-blue-200 font-bold' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'; ?>">
+                                       class="relative inline-flex items-center px-4 py-2 border text-sm font-medium <?php echo $i === $pageNum ? 'z-10 bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900 dark:border-blue-400 dark:text-blue-200 font-bold' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'; ?>">
                                         <?php echo $i; ?>
                                     </a>
                                 <?php endfor; ?>
                                 
                                 <!-- Show last page if not in range -->
-                                <?php if ($endPage < $totalPages): ?>
-                                    <?php if ($endPage < $totalPages - 1): ?>
+                                <?php if ($endPage < $totalPagesNum): ?>
+                                    <?php if ($endPage < $totalPagesNum - 1): ?>
                                         <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300">
                                             ...
                                         </span>
                                     <?php endif; ?>
-                                    <a href="<?php echo buildPageUrl($totalPages, $queryParams); ?>" 
+                                    <a href="<?php echo buildPageUrl($totalPagesNum, $queryParams); ?>" 
                                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600">
-                                        <?php echo $totalPages; ?>
+                                        <?php echo $totalPagesNum; ?>
                                     </a>
                                 <?php endif; ?>
                                 
                                 <!-- Next Page -->
-                                <?php if ($currentPage < $totalPages): ?>
-                                    <a href="<?php echo buildPageUrl($currentPage + 1, $queryParams); ?>" 
+                                <?php if ($pageNum < $totalPagesNum): ?>
+                                    <a href="<?php echo buildPageUrl($pageNum + 1, $queryParams); ?>" 
                                        class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600">
                                         <i class="fas fa-chevron-right"></i>
                                     </a>
                                 <?php endif; ?>
                                 
                                 <!-- Last Page -->
-                                <?php if ($currentPage < $totalPages - 2 && $totalPages > 5): ?>
-                                    <a href="<?php echo buildPageUrl($totalPages, $queryParams); ?>" 
+                                <?php if ($pageNum < $totalPagesNum - 2 && $totalPagesNum > 5): ?>
+                                    <a href="<?php echo buildPageUrl($totalPagesNum, $queryParams); ?>" 
                                        class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600">
                                         <i class="fas fa-angle-double-right"></i>
                                     </a>
@@ -511,7 +527,7 @@ include 'app/views/admin/layout.php';
                 <!-- Show order count even if only one page -->
                 <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
                     <p class="text-sm text-gray-700 dark:text-gray-300 text-center">
-                        Showing all <span class="font-medium"><?php echo number_format($totalOrders); ?></span> orders
+                                Showing all <span class="font-medium"><?php echo number_format($totalOrdersNum); ?></span> orders
                     </p>
                 </div>
             <?php endif; ?>
@@ -668,21 +684,7 @@ async function updateOrderStatus(orderId, newStatus, selectElement) {
             result = JSON.parse(responseText);
         } catch (e) {
             console.error('JSON parse error:', e);
-            console.error('Response text that failed to parse:', responseText);
-            console.error('Response text length:', responseText.length);
-            console.error('Response text (first 500 chars):', responseText.substring(0, 500));
-            
-            // Try to extract any error message from the response
-            let errorMessage = 'Invalid response from server';
-            if (responseText.trim().startsWith('<')) {
-                errorMessage = 'Server returned HTML instead of JSON. This usually means a PHP error occurred. Check server logs.';
-            } else if (responseText.trim().startsWith('Warning') || responseText.trim().startsWith('Notice') || responseText.trim().startsWith('Fatal')) {
-                errorMessage = 'PHP error detected: ' + responseText.substring(0, 200);
-            } else if (responseText.length > 0) {
-                errorMessage = 'Invalid JSON response. Response: ' + responseText.substring(0, 200);
-            }
-            
-            showNotification(errorMessage, 'error');
+            showNotification('Invalid response from server', 'error');
             // Re-enable select and revert to old value
             selectElement.disabled = false;
             selectElement.style.opacity = '1';
@@ -863,23 +865,18 @@ async function assignDriver(orderId, driverName) {
     
     // Store old value to revert if update fails
     const oldValue = driverSelect.value || '';
-    const normalizedOldValue = oldValue.trim();
-    const normalizedDriverName = (driverName || '').trim();
+    // Normalize values for comparison (case-insensitive, trimmed)
+    const normalizedOldValue = (oldValue || '').trim().toLowerCase();
+    const normalizedNewValue = (driverName || '').trim().toLowerCase();
     
-    console.log('📝 Old Driver Value:', normalizedOldValue || 'NULL');
-    console.log('📝 New Driver Value:', normalizedDriverName || 'NULL');
+    console.log('📝 Old Driver Value:', oldValue || '(empty - Unassigned)');
+    console.log('📝 New Driver Value:', driverName || '(empty - Unassigning)');
+    console.log('📝 Normalized Old:', normalizedOldValue || '(empty)');
+    console.log('📝 Normalized New:', normalizedNewValue || '(empty)');
     
-    // Don't update if driver hasn't changed (normalize both values for comparison)
-    // Handle both "assigned" and "unassigned" cases
-    if (normalizedOldValue === normalizedDriverName) {
-        console.log('⚠️ Driver unchanged, skipping update');
-        const currentDriver = normalizedOldValue || 'Unassigned';
-        const message = normalizedOldValue 
-            ? `Driver "${currentDriver}" is already assigned to this order` 
-            : 'This order is already unassigned';
-        showNotification(message, 'info');
-        return;
-    }
+    // REMOVED: Early comparison check that was preventing API calls
+    // Always proceed with API call to ensure database is properly updated
+    // The server will handle the check if the value is actually the same
     
     // Add loading state
     driverSelect.disabled = true;
@@ -892,15 +889,12 @@ async function assignDriver(orderId, driverName) {
     try {
         // Use absolute path from root to avoid path issues
         const apiUrl = `/api/admin/orders/${orderId}`;
-        
-        // Normalize driverName: empty string becomes null for unassigning
-        const driverValue = (driverName && driverName.trim() !== '') ? driverName.trim() : null;
+        const payload = { assigned_driver: driverName || null };
         
         console.log(`📤 Sending PATCH request to ${apiUrl}`);
         console.log(`📤 Full URL: ${window.location.origin}${apiUrl}`);
+        console.log(`📤 Payload:`, payload);
         console.log(`📤 Order ID: ${orderId}, Driver Name: ${driverName || 'null'}`);
-        console.log(`📤 Driver value to send:`, driverValue, `(original: "${driverName}")`);
-        console.log(`📤 Payload:`, { assigned_driver: driverValue });
         
         const response = await fetch(apiUrl, {
             method: 'PATCH',
@@ -909,7 +903,7 @@ async function assignDriver(orderId, driverName) {
             },
             credentials: 'same-origin', // Include cookies for session
             body: JSON.stringify({
-                assigned_driver: driverValue
+                assigned_driver: driverName || null
             })
         });
 
@@ -955,114 +949,82 @@ async function assignDriver(orderId, driverName) {
         if (result.success) {
             console.log('🎉 Driver assignment successful!');
             console.log('📊 Full result:', result);
-            console.log('📊 result.assigned_driver:', result.assigned_driver, '(type:', typeof result.assigned_driver, ')');
             
-            // Update the select value with the response value (handles null properly)
-            // IMPORTANT: Use the actual value from database response, not the sent value
+            // Get the new driver value from response - handle null, undefined, and empty string
             let newDriverValue = '';
-            
-            // Check if assigned_driver is in the response
-            if ('assigned_driver' in result) {
-                if (result.assigned_driver !== null && result.assigned_driver !== undefined && result.assigned_driver !== '') {
+            if (result.hasOwnProperty('assigned_driver')) {
+                // Response explicitly includes assigned_driver field
+                if (result.assigned_driver === null || result.assigned_driver === undefined || result.assigned_driver === '') {
+                    newDriverValue = ''; // Empty string for "Unassigned" option
+                } else {
                     newDriverValue = String(result.assigned_driver).trim();
                 }
-                console.log('📊 New driver value from response:', newDriverValue || 'EMPTY');
-                console.log('📊 Raw assigned_driver from result:', result.assigned_driver);
+            } else if (result.new_driver || result.driver) {
+                // Alternative field names that might be returned
+                newDriverValue = String(result.new_driver || result.driver || '').trim();
             } else {
-                console.warn('⚠️ WARNING: assigned_driver not found in response! Using sent value as fallback.');
-                // Fallback: use the value we sent
-                newDriverValue = driverValue ? String(driverValue).trim() : '';
-                console.log('📊 Using fallback value:', newDriverValue || 'EMPTY');
+                // Fallback: use the driver name that was sent
+                console.warn('⚠️ Response missing assigned_driver field, using original value');
+                newDriverValue = driverName ? String(driverName).trim() : '';
             }
             
-            // Update select element - try to find matching option first
-            // CRITICAL: Compare with trimmed values and handle null/empty properly
-            let optionFound = false;
-            const normalizedNewValue = (newDriverValue || '').trim();
+            console.log('📊 New driver value (normalized):', newDriverValue || '(empty - unassigned)');
+            console.log('📊 Original driver name sent:', driverName || '(empty)');
             
-            console.log('🔍 Looking for option with value:', normalizedNewValue || 'EMPTY');
-            console.log('🔍 Available options:', Array.from(driverSelect.options).map(o => o.value));
-            
-            // First, try exact match
-            for (let option of driverSelect.options) {
-                const optionValue = (option.value || '').trim();
-                if (optionValue === normalizedNewValue) {
-                    driverSelect.value = option.value; // Use original value (may have whitespace)
-                    optionFound = true;
-                    console.log('✅ Found exact matching option:', option.value);
-                    break;
-                }
-            }
-            
-            // If not found and it's empty, set to empty (Unassigned)
-            if (!optionFound && normalizedNewValue === '') {
-                // Find the "Unassigned" option (value="")
-                for (let option of driverSelect.options) {
-                    if (option.value === '') {
-                        driverSelect.value = '';
-                        optionFound = true;
-                        console.log('✅ Set to empty (Unassigned) - found Unassigned option');
-                        break;
-                    }
+            // CRITICAL: Update the select element value BEFORE re-enabling
+            // First, find the exact matching option (case-insensitive)
+            let foundOption = null;
+            if (newDriverValue) {
+                // Try to find exact match first
+                foundOption = Array.from(driverSelect.options).find(opt => opt.value === newDriverValue);
+                
+                // If exact match not found, try case-insensitive match
+                if (!foundOption) {
+                    foundOption = Array.from(driverSelect.options).find(opt => 
+                        opt.value.toLowerCase().trim() === newDriverValue.toLowerCase().trim()
+                    );
                 }
                 
-                // If still not found, set to empty anyway
-                if (!optionFound) {
-                    driverSelect.value = '';
-                    optionFound = true;
-                    console.log('✅ Set to empty (Unassigned) - using empty value');
+                if (foundOption) {
+                    // Use the exact option value (preserves case from dropdown)
+                    newDriverValue = foundOption.value;
+                    console.log('✅ Found matching driver option:', newDriverValue);
+                } else {
+                    console.warn('⚠️ Driver option not found in dropdown:', newDriverValue);
                 }
             }
             
-            // If still not found, try case-insensitive match and trim comparison
-            if (!optionFound && normalizedNewValue !== '') {
-                for (let option of driverSelect.options) {
-                    const optionValue = (option.value || '').trim();
-                    if (optionValue.toLowerCase() === normalizedNewValue.toLowerCase()) {
-                        driverSelect.value = option.value;
-                        optionFound = true;
-                        console.log('✅ Found case-insensitive match:', option.value);
-                        break;
-                    }
+            // Set the select value to the matched option value
+            driverSelect.value = newDriverValue || '';
+            
+            // Force a visual update by triggering a change event (if needed)
+            driverSelect.dispatchEvent(new Event('change', { bubbles: false }));
+            
+            // Verify the value was actually set
+            if (newDriverValue && driverSelect.value !== newDriverValue) {
+                console.error('❌ CRITICAL: Select value mismatch!');
+                console.error('   Expected:', newDriverValue);
+                console.error('   Actual:', driverSelect.value);
+                // Force set again using the found option
+                if (foundOption) {
+                    foundOption.selected = true;
                 }
             }
             
-            // If still not found, add the option dynamically
-            if (!optionFound && normalizedNewValue !== '') {
-                console.warn('⚠️ Driver value not found in options, adding dynamically:', normalizedNewValue);
-                const newOption = document.createElement('option');
-                newOption.value = normalizedNewValue;
-                newOption.textContent = normalizedNewValue;
-                driverSelect.appendChild(newOption);
-                driverSelect.value = normalizedNewValue;
-                optionFound = true;
-            }
-            
-            // Force a change event to ensure UI updates
-            driverSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('✅ Select element updated. Current value:', driverSelect.value || '(empty)');
             
             // Re-enable select
             driverSelect.disabled = false;
             driverSelect.style.opacity = '1';
             driverSelect.style.cursor = 'pointer';
             
-            // Verify the value was actually set
-            console.log('🔍 Verified select value after update:', driverSelect.value);
-            console.log('🔍 Selected option text:', driverSelect.options[driverSelect.selectedIndex]?.textContent || 'NONE');
-            
             // Show clear SUCCESS message - make it prominent
-            const successMessage = newDriverValue && newDriverValue.trim() !== ''
-                ? `✅ Driver assigned successfully! Driver "${newDriverValue}" has been assigned to this order.` 
-                : `✅ Driver unassigned successfully! The driver has been removed from this order.`;
+            const successMessage = newDriverValue 
+                ? `✅ Successfully assigned! Driver "${newDriverValue}" has been assigned to this order.` 
+                : `✅ Successfully unassigned! Driver has been removed from this order.`;
             
             console.log('🎉 SUCCESS! Showing notification:', successMessage);
             showNotification(successMessage, 'success');
-            
-            // Additional verification for unassigning
-            if (!newDriverValue || newDriverValue.trim() === '') {
-                console.log('✅ UNASSIGNED: Verified dropdown shows "Unassigned"');
-                console.log('✅ UNASSIGNED: Select value is:', driverSelect.value || 'EMPTY (correct for unassigned)');
-            }
             
             // Log database confirmation (don't show duplicate notification)
             if (result.database_updated) {
@@ -1072,11 +1034,11 @@ async function assignDriver(orderId, driverName) {
             }
             if (result.verification_passed === false) {
                 console.warn('⚠️ Update saved but verification had issues - check PHP error log');
-                showNotification('⚠️ Driver assigned but verification had issues. Please refresh to confirm.', 'warning');
             }
             
             console.log('✅ ========== DRIVER ASSIGNMENT COMPLETE ==========');
             console.log('✅ UI updated successfully with driver:', newDriverValue || 'null');
+            console.log('✅ Select element value verified:', driverSelect.value || '(empty)');
         } else {
             console.error('❌ Driver assignment failed:', result);
             const errorMsg = result.error || 'Failed to assign driver';
@@ -1514,14 +1476,6 @@ async function exportOrders(event) {
     }
 }
 
-
-// Helper function to escape HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // Show notification
 function showNotification(message, type = 'info') {
     console.log('📢 Showing notification:', type, message);
@@ -1602,24 +1556,6 @@ function showNotification(message, type = 'info') {
         }
     }, type === 'success' ? 5000 : 4000);
 }
-
-// Initialize driver management form
-document.addEventListener('DOMContentLoaded', function() {
-    const addDriverForm = document.getElementById('add-driver-form');
-    if (addDriverForm) {
-        addDriverForm.addEventListener('submit', addDriver);
-    }
-    
-    // Close driver modal when clicking outside
-    const driverModal = document.getElementById('driverModal');
-    if (driverModal) {
-        driverModal.addEventListener('click', function(e) {
-            if (e.target === driverModal) {
-                closeDriverModal();
-            }
-        });
-    }
-});
 
 // Add CSS animation for slide-in effect
 if (!document.getElementById('notification-styles')) {

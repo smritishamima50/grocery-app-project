@@ -36,9 +36,13 @@ class CartController extends BaseController {
             $stmt = $this->pdo->prepare("
                 SELECT ci.*, p.name, p.price, p.image, p.unit, 
                        p.calories_per_unit, p.protein_per_unit, p.carbs_per_unit, 
-                       p.fat_per_unit, p.fiber_per_unit, p.sodium_per_unit
+                       p.fat_per_unit, p.fiber_per_unit, p.sodium_per_unit,
+                       p.is_weight_loss_friendly, p.is_muscle_gain_friendly, 
+                       p.is_diabetes_friendly, p.is_vegetarian, p.stock_quantity, p.is_active,
+                       p.category_id, c.name as category_name
                 FROM cart_items ci
                 JOIN products p ON ci.product_id = p.id
+                LEFT JOIN categories c ON p.category_id = c.id
                 WHERE ci.user_id = ?
             ");
             $stmt->execute([$userId]);
@@ -71,17 +75,399 @@ class CartController extends BaseController {
 
         $finalTotal = $total - $discount;
 
+        // Calculate delivery fee: Free if order total >= 3000, otherwise 50
+        $freeDeliveryThreshold = 3000;
+        $deliveryFee = ($finalTotal >= $freeDeliveryThreshold) ? 0 : 50.00;
+        $serviceCharge = 10.00; // Service charge is always applied
+        $totalWithDelivery = $finalTotal + $deliveryFee + $serviceCharge;
+
         // Get user diet profile for warnings
         $dietHelper = new DietHelper($this->pdo);
         $userDietProfile = $dietHelper->getUserDietProfile($userId);
+        
+        // Get family member profiles and analyze products
+        require_once __DIR__ . '/../helpers/FamilyMemberHelper.php';
+        $familyMemberHelper = new FamilyMemberHelper($this->pdo);
+        $familyMembers = $familyMemberHelper->getFamilyMemberProfiles($userId);
+        
+        // Calculate total persons (user + family members) for dynamic calorie threshold
+        $totalPersons = 1; // User
+        if (!empty($familyMembers)) {
+            foreach ($familyMembers as $member) {
+                $totalPersons += intval($member['member_count'] ?? 1);
+            }
+        }
+        
+        // Dynamic calorie threshold: 300 kcal × number of persons
+        // 1 person = 300 kcal, 2 persons = 600 kcal, 3 persons = 900 kcal, etc.
+        $calorieThreshold = 300 * $totalPersons;
+        
+        // Analyze each cart item for both user and family members
+        // Skip diet analysis for Home Cleaning products (they are not food items)
+        $productAnalysis = [];
+        if (!empty($cartItems)) {
+            foreach ($cartItems as $item) {
+                // Skip diet analysis for Home Cleaning products
+                $categoryName = isset($item['category_name']) ? strtolower(trim($item['category_name'])) : '';
+                if ($categoryName === 'home cleaning') {
+                    // No diet analysis for non-food items - set neutral status
+                    $productAnalysis[$item['product_id']] = [
+                        'status' => 'neutral',
+                        'message' => 'Non-food item - no diet analysis available',
+                        'user_suitable' => null,
+                        'family_analysis' => null,
+                        'skip_analysis' => true
+                    ];
+                    continue; // Skip to next product
+                }
+                
+                $analysis = ['user_suitable' => null, 'family_analysis' => null];
+                
+                // PRIMARY CHECK: Calorie-based analysis with dynamic threshold based on number of persons
+                $productCalories = floatval($item['calories_per_unit'] ?? 0);
+                
+                // Determine user suitability based on calories FIRST, then diet profile
+                // Use dynamic threshold calculated above (300 kcal × number of persons)
+                if ($productCalories > $calorieThreshold) {
+                    // Above threshold - AVOID regardless of diet profile
+                    $analysis['user_suitable'] = false;
+                } elseif ($productCalories == $calorieThreshold) {
+                    // Exactly at threshold - CAUTION regardless of diet profile
+                    $analysis['user_suitable'] = null;
+                } elseif ($productCalories < $calorieThreshold && $productCalories > 0) {
+                    // Below threshold - check diet profile for additional considerations
+                    if ($userDietProfile) {
+                        $isUserSuitable = $dietHelper->isProductSuitable($item, $userId);
+                        // isProductSuitable uses 300 kcal as base, but we've already checked dynamic threshold
+                        // So if it passed threshold check, it should be suitable unless diet-specific issues
+                        if ($isUserSuitable === false && $productCalories < $calorieThreshold) {
+                            // If diet check says false but calories are acceptable, 
+                            // it might be due to specific diet requirements (like vegetarian)
+                            // Keep the false for now (it's a valid diet restriction)
+                            $analysis['user_suitable'] = false;
+                        } else {
+                            $analysis['user_suitable'] = $isUserSuitable;
+                        }
+                    } else {
+                        // No diet profile - below threshold is recommended
+                        $analysis['user_suitable'] = true;
+                    }
+                } else {
+                    // No calorie information - neutral
+                    $analysis['user_suitable'] = null;
+                }
+                
+                // Store threshold info for reference
+                $analysis['calorie_threshold_used'] = $calorieThreshold;
+                
+                // Always check family members' suitability (if family members exist)
+                if (!empty($familyMembers)) {
+                    $familyAnalysis = $familyMemberHelper->analyzeProductForFamily($item, $userId);
+                    $analysis['family_analysis'] = $familyAnalysis;
+                    
+                    // Combine user and family status for overall recommendation
+                    $overallStatus = 'neutral';
+                    $overallMessage = 'Product analysis';
+                    
+                    // Get family summary for better decision making
+                    $familySummary = $familyAnalysis['summary'] ?? [];
+                    $totalFamilyMembers = $familySummary['total_members'] ?? 0;
+                    $familyAvoidCount = $familySummary['avoid'] ?? 0;
+                    $familyCautionCount = $familySummary['caution'] ?? 0;
+                    $familyRecommendedCount = $familySummary['recommended'] ?? 0;
+                    
+                    // Determine overall status based on both user and family
+                    // Priority: Avoid > Caution > Recommended
+                    if ($analysis['user_suitable'] === false && $familyAnalysis['status'] === 'avoid') {
+                        // Both user and family should avoid
+                        $overallStatus = 'avoid';
+                        $overallMessage = 'Not suitable for you or family members';
+                    } elseif ($analysis['user_suitable'] === false || $familyAnalysis['status'] === 'avoid') {
+                        if ($analysis['user_suitable'] === false && $familyAnalysis['status'] === 'avoid') {
+                            $overallStatus = 'avoid';
+                            $overallMessage = 'Not suitable for you or family members';
+                        } elseif ($familyAnalysis['status'] === 'avoid') {
+                            // Family members should avoid
+                            $overallStatus = 'avoid';
+                            $overallMessage = 'Not suitable for ' . $familyAvoidCount . ' family member(s)';
+                        } else {
+                            // Only user should avoid
+                            $overallStatus = 'avoid';
+                            $overallMessage = 'Not suitable for your diet plan';
+                        }
+                    } elseif ($analysis['user_suitable'] === null || $familyAnalysis['status'] === 'caution') {
+                        // User or family needs caution
+                        $overallStatus = 'caution';
+                        if ($familyAnalysis['status'] === 'caution') {
+                            $overallMessage = 'Use caution for ' . $familyCautionCount . ' family member(s)';
+                        } else {
+                            $overallMessage = 'Use caution - Product requires careful consideration';
+                        }
+                    } elseif ($analysis['user_suitable'] === true && $familyAnalysis['status'] === 'recommended') {
+                        // Both user and family recommend
+                        $overallStatus = 'recommended';
+                        if ($familyRecommendedCount > 0) {
+                            $overallMessage = 'Recommended for ' . $familyRecommendedCount . ' family member(s)';
+                        } else {
+                            $overallMessage = 'Recommended for your diet plan';
+                        }
+                    } elseif ($analysis['user_suitable'] === true && $familyAnalysis['status'] !== 'avoid' && $familyAnalysis['status'] !== 'caution') {
+                        $overallStatus = 'recommended';
+                        $overallMessage = 'Recommended for your diet plan';
+                    } elseif ($analysis['user_suitable'] === null && $familyAnalysis['status'] === 'recommended') {
+                        $overallStatus = 'recommended';
+                        $overallMessage = 'Recommended for ' . $familyRecommendedCount . ' family member(s)';
+                    } else {
+                        // Default based on family analysis
+                        $overallStatus = $familyAnalysis['status'] ?? 'recommended';
+                        $overallMessage = $familyAnalysis['message'] ?? 'Recommended';
+                    }
+                    
+                    // Store threshold info for display
+                    $analysis['calorie_threshold'] = $calorieThreshold;
+                    $analysis['total_persons'] = $totalPersons;
+                    
+                    $analysis['status'] = $overallStatus;
+                    $analysis['message'] = $overallMessage;
+                } elseif ($userDietProfile) {
+                    // Only user profile, no family members - use calorie-based recommendations with dynamic threshold
+                    $productCalories = floatval($item['calories_per_unit'] ?? 0);
+                    
+                    if ($analysis['user_suitable'] === true) {
+                        $analysis['status'] = 'recommended';
+                        $analysis['message'] = 'Recommended for your diet plan';
+                    } elseif ($analysis['user_suitable'] === false) {
+                        $analysis['status'] = 'avoid';
+                        $analysis['message'] = 'Not suitable for your diet plan';
+                    } elseif ($analysis['user_suitable'] === null || $productCalories == $calorieThreshold) {
+                        // Caution case (at threshold or null from diet check)
+                        $analysis['status'] = 'caution';
+                        $analysis['message'] = 'Use caution - Product requires careful consideration';
+                    } else {
+                        // Fallback
+                        $analysis['status'] = 'recommended';
+                        $analysis['message'] = 'Recommended for your diet plan';
+                    }
+                    
+                    $analysis['calorie_threshold'] = $calorieThreshold;
+                    $analysis['total_persons'] = $totalPersons;
+                } else {
+                    // No diet profile set - analyze based on calories with dynamic threshold
+                    $productCalories = floatval($item['calories_per_unit'] ?? 0);
+                    
+                    if ($productCalories > $calorieThreshold) {
+                        $analysis['status'] = 'avoid';
+                        $analysis['message'] = 'High calorie product - above ' . number_format($calorieThreshold, 0) . ' kcal';
+                        $analysis['user_suitable'] = false;
+                    } elseif ($productCalories == $calorieThreshold) {
+                        $analysis['status'] = 'caution';
+                        $analysis['message'] = 'Product is ' . number_format($calorieThreshold, 0) . ' kcal - use caution';
+                        $analysis['user_suitable'] = null;
+                    } elseif ($productCalories > 0) {
+                        $analysis['status'] = 'recommended';
+                        $analysis['message'] = 'Product is below ' . number_format($calorieThreshold, 0) . ' kcal - recommended';
+                        $analysis['user_suitable'] = true;
+                    } else {
+                        $analysis['status'] = 'neutral';
+                        $analysis['message'] = 'No nutritional information available';
+                        $analysis['user_suitable'] = null;
+                    }
+                    
+                    $analysis['calorie_threshold'] = $calorieThreshold;
+                    $analysis['total_persons'] = $totalPersons;
+                }
+                
+                // Always store analysis for every product - ensure it has at least status and message
+                if (!isset($analysis['status']) || empty($analysis['status'])) {
+                    $analysis['status'] = 'neutral';
+                    $analysis['message'] = 'Product analysis';
+                }
+                $productAnalysis[$item['product_id']] = $analysis;
+            }
+        }
+        
+        // Calculate quantities for specific categories to determine weekly/daily view
+        // Different categories have different thresholds and unit types
+        $isWeeklyView = false;
+        $weeklyViewReasons = []; // Track which conditions triggered weekly view
+        
+        // Check each cart item against category-specific thresholds
+        foreach ($cartItems as $item) {
+            $categoryName = trim($item['category_name'] ?? '');
+            $categoryLower = strtolower($categoryName);
+            $quantity = floatval($item['quantity'] ?? 0);
+            $unit = strtolower(trim($item['unit'] ?? ''));
+            $productName = strtolower($item['name'] ?? '');
+            
+            // Helper function to convert quantity to kg
+            $quantityInKg = 0;
+            if (strpos($unit, 'kg') !== false || $unit === 'kg') {
+                $quantityInKg = $quantity;
+            } elseif (strpos($unit, 'g') !== false || $unit === 'g') {
+                $quantityInKg = $quantity / 1000;
+            } else {
+                // Try to estimate from unit_size if available
+                if (isset($item['unit_size']) && preg_match('/(\d+\.?\d*)\s*kg/i', $item['unit_size'], $matches)) {
+                    $unitSizeKg = floatval($matches[1]);
+                    $quantityInKg = $quantity * $unitSizeKg;
+                }
+            }
+            
+            // PRIORITY CHECK: Meat & Poultry, Rice & Grains: any product > 3 kg → ALWAYS Weekly View
+            // NOTE: These categories have their own special rule - ONLY > 3 kg triggers weekly view, not 2-3 kg
+            if (in_array($categoryLower, ['meat & poultry', 'rice & grains'])) {
+                // If any product from Meat & Poultry or Rice & Grains has MORE than 3 kg, force Weekly View
+                if ($quantityInKg > 3.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = number_format($quantityInKg, 2) . ' kg of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (> 3 kg threshold - forces Weekly View)';
+                    continue; // Skip remaining checks for this item, already triggered weekly view
+                }
+                // For Meat & Poultry and Rice & Grains: 3 kg or less does NOT trigger weekly view (skip to next item)
+                continue; // Skip the > 2 kg check below for these categories
+            }
+            
+            // 1. Fruits & Vegetables: each product > 2 kg
+            // NOTE: Meat & Poultry and Rice & Grains are excluded here (they have their own > 3 kg rule above)
+            if ($categoryLower === 'fruits & vegetables') {
+                // Check if this individual product has more than 2 kg
+                if ($quantityInKg > 2.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = number_format($quantityInKg, 2) . ' kg of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (> 2 kg per product threshold)';
+                }
+            }
+            
+            // 2. Baking Needs: more than 1 kg per product
+            if ($categoryLower === 'baking needs') {
+                $quantityInKg = 0;
+                if (strpos($unit, 'kg') !== false || $unit === 'kg') {
+                    $quantityInKg = $quantity;
+                } elseif (strpos($unit, 'g') !== false || $unit === 'g') {
+                    $quantityInKg = $quantity / 1000;
+                } else {
+                    if (isset($item['unit_size']) && preg_match('/(\d+\.?\d*)\s*kg/i', $item['unit_size'], $matches)) {
+                        $quantityInKg = $quantity * floatval($matches[1]);
+                    }
+                }
+                
+                if ($quantityInKg > 1.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = number_format($quantityInKg, 2) . ' kg of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (> 1 kg per product threshold)';
+                }
+            }
+            
+            // 3. Cooking: more than 1 kg per product (exclude spices/herbs which are checked separately)
+            $isSpiceOrHerb = (strpos($productName, 'spice') !== false || 
+                             strpos($productName, 'herb') !== false ||
+                             strpos($categoryName, 'spice') !== false ||
+                             strpos($categoryName, 'herb') !== false);
+            
+            if ($categoryLower === 'cooking' && !$isSpiceOrHerb) {
+                $quantityInKg = 0;
+                if (strpos($unit, 'kg') !== false || $unit === 'kg') {
+                    $quantityInKg = $quantity;
+                } elseif (strpos($unit, 'g') !== false || $unit === 'g') {
+                    $quantityInKg = $quantity / 1000;
+                } else {
+                    if (isset($item['unit_size']) && preg_match('/(\d+\.?\d*)\s*kg/i', $item['unit_size'], $matches)) {
+                        $quantityInKg = $quantity * floatval($matches[1]);
+                    }
+                }
+                
+                if ($quantityInKg > 1.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = number_format($quantityInKg, 2) . ' kg of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (> 1 kg per product threshold)';
+                }
+            }
+            
+            // 4. Dairy & Eggs: more than 1 units per product
+            if ($categoryLower === 'dairy & eggs' || $categoryLower === 'dairy and eggs') {
+                // Count units (quantity > 1 means more than 1 unit)
+                if ($quantity > 1.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = $quantity . ' units of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (> 1 unit per product threshold)';
+                }
+            }
+            
+            // 5. Frozen Food: 1 pack or more per product (quantity >= 1)
+            if ($categoryLower === 'frozen food' || $categoryLower === 'frozen foods') {
+                // Check if quantity >= 1 (any unit type)
+                if ($quantity >= 1.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = $quantity . ' pack(s) of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (>= 1 pack per product threshold)';
+                }
+            }
+            
+            // 6. Spices & Herbs (might be in Cooking category or separate): more than 1 packs per product
+            // Check if product name contains spice/herb keywords or category name
+            if ($isSpiceOrHerb || strpos($categoryLower, 'spice') !== false || strpos($categoryLower, 'herb') !== false) {
+                // Check if unit is packs and quantity > 1
+                if (strpos($unit, 'pack') !== false && $quantity > 1.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = $quantity . ' packs of ' . htmlspecialchars($item['name']) . ' from Spices/Herbs (> 1 pack per product threshold)';
+                }
+            }
+            
+            // 7. Snacks (and Pasta): more than 1 packs per product
+            if ($categoryLower === 'snacks' || 
+                strpos($categoryLower, 'snack') !== false ||
+                strpos($productName, 'pasta') !== false) {
+                
+                // Check if unit is packs and quantity > 1
+                if (strpos($unit, 'pack') !== false && $quantity > 1.0) {
+                    $isWeeklyView = true;
+                    $weeklyViewReasons[] = $quantity . ' packs of ' . htmlspecialchars($item['name']) . ' from ' . $categoryName . ' (> 1 pack per product threshold)';
+                }
+            }
+        }
         
         // Get calorie recommendations
         require_once __DIR__ . '/../helpers/CalorieHelper.php';
         $calorieHelper = new CalorieHelper($this->pdo);
         $calorieRecommendation = $calorieHelper->getCalorieRecommendation($userId);
+        
+        // Add weekly calculation if in weekly view mode
+        if ($isWeeklyView) {
+            $weeklyCalories = $calorieRecommendation['cart_calories'] ?? 0;
+            $weeklyTarget = $calorieRecommendation['weekly_target'] ?? 0;
+            $dailyTarget = $calorieRecommendation['daily_target'] ?? 0;
+            
+            // Calculate weekly percentage
+            $weeklyPercentage = $weeklyTarget > 0 ? ($weeklyCalories / $weeklyTarget) * 100 : 0;
+            
+            // Calculate daily percentage (for weekly view, still show how much of daily target)
+            $dailyPercentage = $dailyTarget > 0 ? ($weeklyCalories / $dailyTarget) * 100 : 0;
+            
+            $calorieRecommendation['is_weekly_view'] = true;
+            $calorieRecommendation['weekly_calories'] = $weeklyCalories;
+            $calorieRecommendation['weekly_percentage'] = round($weeklyPercentage, 1);
+            $calorieRecommendation['daily_percentage_weekly_view'] = round($dailyPercentage, 1);
+            $calorieRecommendation['weekly_view_reasons'] = $weeklyViewReasons;
+        } else {
+            $calorieRecommendation['is_weekly_view'] = false;
+        }
 
         // Get surprise gift options for user selection
         $surpriseGiftOptions = [];
+        $selectedGiftId = null; // Track which gift is already selected
+        
+        // Check if user has already selected a surprise gift (from database with NULL order_id)
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT surprise_gift_id 
+                FROM user_surprise_gifts 
+                WHERE user_id = ? AND order_id IS NULL
+                LIMIT 1
+            ");
+            $stmt->execute([$userId]);
+            $selectedGift = $stmt->fetch();
+            if ($selectedGift) {
+                $selectedGiftId = intval($selectedGift['surprise_gift_id']);
+            }
+        } catch (PDOException $e) {
+            // Table might not exist yet or column might not allow NULL, continue
+            error_log("Note: Could not check selected gift: " . $e->getMessage());
+        }
+        
         if (!empty($cartItems)) {
             $surpriseGiftHelper = new SurpriseGiftHelper($this->pdo);
             $userOrderCount = $this->getUserOrderCount($userId);
@@ -96,7 +482,7 @@ class CartController extends BaseController {
                 AND (sg.end_date IS NULL OR sg.end_date >= CURDATE())
                 AND p.stock_quantity > 0
                 ORDER BY sg.probability_percentage DESC
-                LIMIT 2
+                LIMIT 10
             ");
             $stmt->execute();
             $availableGifts = $stmt->fetchAll();
@@ -115,10 +501,17 @@ class CartController extends BaseController {
             'total' => $total,
             'discount' => $discount,
             'finalTotal' => $finalTotal,
+            'deliveryFee' => $deliveryFee,
+            'serviceCharge' => $serviceCharge,
+            'totalWithDelivery' => $totalWithDelivery,
+            'freeDeliveryThreshold' => $freeDeliveryThreshold,
             'appliedCoupon' => $appliedCoupon,
             'userDietProfile' => $userDietProfile,
+            'familyMembers' => $familyMembers,
+            'productAnalysis' => $productAnalysis,
             'calorieRecommendation' => $calorieRecommendation,
-            'surpriseGiftOptions' => $surpriseGiftOptions
+            'surpriseGiftOptions' => $surpriseGiftOptions,
+            'selectedGiftId' => $selectedGiftId
         ]);
     }
 
@@ -559,6 +952,224 @@ class CartController extends BaseController {
         $stmt = $this->pdo->prepare("SELECT COUNT(*) as count FROM orders WHERE user_id = ?");
         $stmt->execute([$userId]);
         return $stmt->fetch()['count'];
+    }
+
+    /**
+     * Save selected surprise gift to wishlist and user_surprise_gifts
+     * POST /cart/select-surprise-gift
+     */
+    public function selectSurpriseGift() {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+            return;
+        }
+
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Please login to select surprise gift', 'login_required' => true]);
+            return;
+        }
+
+        $userId = $_SESSION['user_id'];
+        $giftIndex = isset($_POST['gift_index']) ? intval($_POST['gift_index']) : -1;
+
+        if ($giftIndex < 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid gift selection']);
+            return;
+        }
+
+        try {
+            // Get available surprise gifts (same logic as in index method)
+            require_once __DIR__ . '/../helpers/SurpriseGiftHelper.php';
+            $surpriseGiftHelper = new SurpriseGiftHelper($this->pdo);
+            
+            $stmt = $this->pdo->prepare("
+                SELECT sg.*, p.name as product_name, p.image as product_image, p.price as product_price
+                FROM surprise_gifts sg
+                JOIN products p ON sg.product_id = p.id
+                WHERE sg.is_active = 1
+                AND (sg.start_date IS NULL OR sg.start_date <= CURDATE())
+                AND (sg.end_date IS NULL OR sg.end_date >= CURDATE())
+                AND p.stock_quantity > 0
+                ORDER BY sg.probability_percentage DESC
+                LIMIT 10
+            ");
+            $stmt->execute();
+            $availableGifts = $stmt->fetchAll();
+            
+            // Filter gifts based on eligibility
+            $eligibleGifts = [];
+            foreach ($availableGifts as $gift) {
+                if ($surpriseGiftHelper->isUserEligibleForGift($userId, $gift['id']) && 
+                    !$surpriseGiftHelper->hasGiftReachedMaxUses($gift)) {
+                    $eligibleGifts[] = $gift;
+                }
+            }
+
+            if (!isset($eligibleGifts[$giftIndex])) {
+                echo json_encode(['success' => false, 'message' => 'Selected gift is not available']);
+                return;
+            }
+
+            $selectedGift = $eligibleGifts[$giftIndex];
+            $giftId = $selectedGift['id'];
+            $productId = $selectedGift['product_id'];
+            $quantity = $selectedGift['quantity'] ?? 1;
+
+            $this->pdo->beginTransaction();
+
+            // 1. Ensure cart_items table exists
+            $this->ensureCartItemsTableExists();
+
+            // 2. Add gift product to cart_items (shopping cart)
+            // Check if product already exists in cart
+            $stmt = $this->pdo->prepare("SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ?");
+            $stmt->execute([$userId, $productId]);
+            $existingCartItem = $stmt->fetch();
+            
+            if ($existingCartItem) {
+                // Product already in cart, update quantity (add gift quantity to existing)
+                $newQuantity = $existingCartItem['quantity'] + $quantity;
+                $stmt = $this->pdo->prepare("UPDATE cart_items SET quantity = ? WHERE id = ?");
+                $stmt->execute([$newQuantity, $existingCartItem['id']]);
+                error_log("✅ Updated existing cart item for surprise gift product ID: $productId, new quantity: $newQuantity");
+            } else {
+                // Add new item to cart
+                $stmt = $this->pdo->prepare("INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)");
+                $stmt->execute([$userId, $productId, $quantity]);
+                error_log("✅ Added surprise gift product to cart: Product ID: $productId, Quantity: $quantity");
+            }
+
+            // 3. Add to wishlist (if not already exists)
+            $stmt = $this->pdo->prepare("SELECT id FROM wishlists WHERE user_id = ? AND product_id = ?");
+            $stmt->execute([$userId, $productId]);
+            if (!$stmt->fetch()) {
+                $stmt = $this->pdo->prepare("INSERT INTO wishlists (user_id, product_id) VALUES (?, ?)");
+                $stmt->execute([$userId, $productId]);
+                error_log("✅ Added surprise gift product to wishlist: Product ID: $productId");
+            }
+
+            // 4. Ensure user_surprise_gifts table allows NULL order_id
+            // Try to modify the table structure if needed (allow NULL order_id)
+            // This is safe to run multiple times - it will only modify if needed
+            try {
+                // Check current column definition first
+                $stmt = $this->pdo->query("SHOW COLUMNS FROM user_surprise_gifts WHERE Field = 'order_id'");
+                $columnInfo = $stmt->fetch();
+                
+                if ($columnInfo && strpos($columnInfo['Null'], 'YES') === false) {
+                    // Column doesn't allow NULL, modify it
+                    try {
+                        // Temporarily disable foreign key checks
+                        $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+                        $this->pdo->exec("ALTER TABLE user_surprise_gifts MODIFY COLUMN order_id INT NULL");
+                        $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+                        error_log("Modified user_surprise_gifts table to allow NULL order_id");
+                    } catch (PDOException $e) {
+                        error_log("Note: Could not modify order_id column: " . $e->getMessage());
+                        // Continue anyway - might work if foreign key allows it
+                    }
+                }
+            } catch (PDOException $e) {
+                // Table might not exist or other error, try to modify anyway
+                try {
+                    $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+                    $this->pdo->exec("ALTER TABLE user_surprise_gifts MODIFY COLUMN order_id INT NULL");
+                    $this->pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
+                } catch (PDOException $e2) {
+                    error_log("Note: Could not modify order_id column: " . $e2->getMessage());
+                }
+            }
+
+            // 5. Remove any existing selection for this user (only NULL order_id ones - cart selections)
+            // This ensures only one gift can be selected at a time
+            try {
+                $stmt = $this->pdo->prepare("
+                    DELETE FROM user_surprise_gifts 
+                    WHERE user_id = ? AND order_id IS NULL
+                ");
+                $stmt->execute([$userId]);
+            } catch (PDOException $e) {
+                // If query fails due to NULL not being allowed, try without NULL check
+                error_log("Note: Could not delete with NULL check, trying alternative: " . $e->getMessage());
+                // Continue - will try to insert anyway
+            }
+
+            // 6. Add to user_surprise_gifts with NULL order_id (will be updated when order is created)
+            // Use INSERT IGNORE or handle duplicate key error gracefully
+            try {
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO user_surprise_gifts (user_id, order_id, surprise_gift_id, quantity) 
+                    VALUES (?, NULL, ?, ?)
+                ");
+                $stmt->execute([$userId, $giftId, $quantity]);
+            } catch (PDOException $e) {
+                // If unique constraint violation, update existing record instead
+                if ($e->getCode() == 23000 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    $stmt = $this->pdo->prepare("
+                        UPDATE user_surprise_gifts 
+                        SET surprise_gift_id = ?, quantity = ? 
+                        WHERE user_id = ? AND order_id IS NULL
+                    ");
+                    $stmt->execute([$giftId, $quantity, $userId]);
+                } else {
+                    throw $e; // Re-throw if it's a different error
+                }
+            }
+
+            // 7. Store in session for checkout
+            $_SESSION['selected_surprise_gift'] = [
+                'gift_id' => $giftId,
+                'product_id' => $productId,
+                'quantity' => $quantity,
+                'name' => $selectedGift['name'],
+                'product_name' => $selectedGift['product_name']
+            ];
+
+            $this->pdo->commit();
+
+            error_log("✅ Successfully added surprise gift to cart and database for user: $userId, Gift ID: $giftId, Product ID: $productId");
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Successfully added the surprise gift to your shopping cart!',
+                'gift' => [
+                    'id' => $giftId,
+                    'name' => $selectedGift['name'],
+                    'product_name' => $selectedGift['product_name'],
+                    'product_id' => $productId,
+                    'quantity' => $quantity
+                ],
+                'cart_updated' => true
+            ]);
+
+        } catch (PDOException $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollback();
+            }
+            error_log("❌ Select surprise gift PDO error: " . $e->getMessage());
+            error_log("❌ Error code: " . $e->getCode());
+            error_log("❌ SQL State: " . $e->errorInfo[0] ?? 'N/A');
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Failed to add surprise gift to cart. Please try again.',
+                'error' => $e->getMessage()
+            ]);
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollback();
+            }
+            error_log("❌ Select surprise gift general error: " . $e->getMessage());
+            error_log("❌ Stack trace: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Failed to add surprise gift to cart. Please try again.'
+            ]);
+        }
     }
 
     /**

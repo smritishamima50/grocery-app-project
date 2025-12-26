@@ -76,8 +76,71 @@ ob_start();
                                             <h3 class="font-bold text-xl text-gray-900 mb-2"><?php echo htmlspecialchars($item['name']); ?></h3>
                                             <p class="text-green-600 font-semibold text-lg">৳<?php echo number_format($item['price'], 2); ?> per <?php echo htmlspecialchars($item['unit']); ?></p>
                                             
-                                            <!-- Sodium Warning for Low Sodium Diet -->
-                                            <?php if (isset($userDietProfile) && $userDietProfile && $userDietProfile['diet_goal'] === 'low_sodium' && isset($item['sodium_per_unit']) && $item['sodium_per_unit'] > 300): ?>
+                                            <!-- Product Recommendation (User + Family Members) - Skip for Home Cleaning products -->
+                                            <?php 
+                                            // Skip diet analysis display for Home Cleaning products (non-food items)
+                                            $isHomeCleaning = isset($item['category_name']) && strtolower(trim($item['category_name'])) === 'home cleaning';
+                                            
+                                            if (!$isHomeCleaning):
+                                                // Always show analysis for every product - it should ALWAYS exist
+                                                $analysis = $productAnalysis[$item['product_id']] ?? ['status' => 'neutral', 'message' => 'Product analysis available'];
+                                                $status = $analysis['status'] ?? 'neutral';
+                                                $statusColors = [
+                                                    'recommended' => ['bg' => 'bg-green-100', 'border' => 'border-green-500', 'text' => 'text-green-700', 'icon' => 'fa-check-circle'],
+                                                    'caution' => ['bg' => 'bg-yellow-100', 'border' => 'border-yellow-500', 'text' => 'text-yellow-700', 'icon' => 'fa-exclamation-circle'],
+                                                    'avoid' => ['bg' => 'bg-red-100', 'border' => 'border-red-500', 'text' => 'text-red-700', 'icon' => 'fa-times-circle'],
+                                                    'neutral' => ['bg' => 'bg-blue-100', 'border' => 'border-blue-500', 'text' => 'text-blue-700', 'icon' => 'fa-info-circle']
+                                                ];
+                                                $colors = $statusColors[$status] ?? $statusColors['neutral'];
+                                            ?>
+                                            <div class="mt-2 <?php echo $colors['bg']; ?> border-l-4 <?php echo $colors['border']; ?> <?php echo $colors['text']; ?> p-3 rounded-lg flex items-start">
+                                                <i class="fas <?php echo $colors['icon']; ?> mr-3 mt-1"></i>
+                                                <div class="flex-1">
+                                                    <p class="font-semibold text-sm">
+                                                        <?php 
+                                                        if ($status === 'recommended') echo '✓ Recommended';
+                                                        elseif ($status === 'caution') echo '⚠ Use Caution';
+                                                        elseif ($status === 'avoid') echo '✗ Avoid';
+                                                        else echo 'ℹ️ Info';
+                                                        ?>
+                                                    </p>
+                                                    <p class="text-xs mt-1 font-medium"><?php echo htmlspecialchars($analysis['message'] ?? 'Product analysis'); ?></p>
+                                                    
+                                                    <!-- User Diet Profile Status - Always Show if Available -->
+                                                    <?php if (isset($analysis['user_suitable']) && $analysis['user_suitable'] !== null): ?>
+                                                        <div class="mt-2 text-xs pt-2 border-t border-gray-300">
+                                                            <p class="font-semibold mb-1">Your Diet Profile:</p>
+                                                            <p class="<?php echo $analysis['user_suitable'] ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'; ?>">
+                                                                <?php echo $analysis['user_suitable'] ? '✓ Suitable for your diet plan' : '✗ Not suitable for your diet plan'; ?>
+                                                            </p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    
+                                                    <!-- Family Member Analysis Details - Always Show if Available -->
+                                                    <?php if (isset($analysis['family_analysis']) && !empty($analysis['family_analysis']['details'])): ?>
+                                                        <div class="mt-2 text-xs pt-2 border-t border-gray-300">
+                                                            <p class="font-semibold mb-1">Family Members Analysis:</p>
+                                                            <ul class="list-disc list-inside space-y-0.5">
+                                                                <?php foreach ($analysis['family_analysis']['details'] as $detail): ?>
+                                                                    <li>
+                                                                        <?php echo ucfirst($detail['type']); ?> (<?php echo $detail['count']; ?> <?php echo $detail['count'] == 1 ? 'person' : 'persons'; ?>): 
+                                                                        <span class="font-semibold <?php 
+                                                                            echo $detail['suitability'] === 'recommended' ? 'text-green-600' : 
+                                                                                ($detail['suitability'] === 'caution' ? 'text-yellow-600' : 'text-red-600'); 
+                                                                        ?>">
+                                                                            <?php echo ucfirst($detail['suitability']); ?>
+                                                                        </span>
+                                                                    </li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; // End if not Home Cleaning ?>
+                                            
+                                            <!-- Sodium Warning for Low Sodium Diet - Skip for Home Cleaning -->
+                                            <?php if (!$isHomeCleaning && isset($userDietProfile) && $userDietProfile && $userDietProfile['diet_goal'] === 'low_sodium' && isset($item['sodium_per_unit']) && $item['sodium_per_unit'] > 300): ?>
                                                 <div class="mt-2 bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-lg flex items-start">
                                                     <i class="fas fa-exclamation-triangle mr-3 mt-1"></i>
                                                     <div class="flex-1">
@@ -88,10 +151,10 @@ ob_start();
                                             <?php endif; ?>
                                             
                                             <!-- Calorie Information -->
-                                            <?php if (isset($item['calories_per_unit']) && $item['calories_per_unit']): ?>
+                                            <?php if (isset($item['calories_per_unit']) && $item['calories_per_unit'] > 0): ?>
                                                 <div class="mt-2 text-sm text-gray-600 flex items-center">
                                                     <i class="fas fa-fire text-orange-500 mr-2"></i>
-                                                    <span><?php echo ($item['calories_per_unit'] * $item['quantity']); ?> kcal total (<?php echo $item['calories_per_unit']; ?> kcal each)</span>
+                                                    <span><strong><?php echo number_format($item['calories_per_unit'] * $item['quantity'], 1); ?> kcal</strong> total (<strong><?php echo number_format($item['calories_per_unit'], 1); ?> kcal</strong> each <?php echo !empty($item['unit']) ? 'per ' . htmlspecialchars($item['unit']) : ''; ?>)</span>
                                                 </div>
                                             <?php endif; ?>
                                             
@@ -130,43 +193,129 @@ ob_start();
 
                         <!-- Calorie Recommendation -->
                         <?php if (isset($calorieRecommendation) && $calorieRecommendation): ?>
+                            <?php 
+                            $isWeeklyView = isset($calorieRecommendation['is_weekly_view']) && $calorieRecommendation['is_weekly_view'];
+                            ?>
                             <div class="mb-6 p-4 rounded-xl border-2 <?php 
                                 echo $calorieRecommendation['color'] === 'red' ? 'bg-red-50 border-red-200' : 
                                     ($calorieRecommendation['color'] === 'yellow' ? 'bg-yellow-50 border-yellow-200' : 
                                     ($calorieRecommendation['color'] === 'blue' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200')); 
                             ?>">
-                                <div class="flex items-center mb-3">
-                                    <i class="fas fa-<?php echo $calorieRecommendation['icon']; ?> text-<?php echo $calorieRecommendation['color']; ?>-600 text-xl mr-3"></i>
-                                    <h3 class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-800 text-lg">
-                                        <?php echo $calorieRecommendation['message']; ?>
-                                    </h3>
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-<?php echo $calorieRecommendation['icon']; ?> text-<?php echo $calorieRecommendation['color']; ?>-600 text-xl mr-3"></i>
+                                        <h3 class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-800 text-lg">
+                                            <?php if ($isWeeklyView): ?>
+                                                Weekly Based Calories
+                                            <?php else: ?>
+                                                Daily Based Calories
+                                            <?php endif; ?>
+                                        </h3>
+                                    </div>
+                                    <?php if (isset($calorieRecommendation['total_persons']) && $calorieRecommendation['total_persons'] > 1): ?>
+                                        <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                            <?php echo $calorieRecommendation['total_persons']; ?> person<?php echo $calorieRecommendation['total_persons'] > 1 ? 's' : ''; ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <span class="text-gray-600">Cart Calories:</span>
-                                        <span class="font-semibold text-<?php echo $calorieRecommendation['color']; ?>-700">
-                                            <?php echo $calorieRecommendation['cart_calories']; ?> kcal
-                                        </span>
+                                
+                                <?php if ($isWeeklyView): ?>
+                                    <!-- Weekly View Display -->
+                                    <div class="space-y-3 text-sm">
+                                        <div class="bg-white/60 rounded-lg p-3">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="text-gray-700 font-medium">Weekly Based Calories:</span>
+                                                <span class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-700 text-lg">
+                                                    <?php echo number_format($calorieRecommendation['cart_calories'] ?? 0, 0); ?> kcal
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <span class="text-gray-600 block mb-1">Daily Target:</span>
+                                                <span class="font-semibold text-gray-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['daily_target'] ?? 0, 0); ?> kcal
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600 block mb-1">Weekly Target:</span>
+                                                <span class="font-semibold text-gray-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['weekly_target'] ?? 0, 0); ?> kcal
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600 block mb-1">Daily %:</span>
+                                                <span class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['daily_percentage_weekly_view'] ?? 0, 1); ?>%
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600 block mb-1">Weekly %:</span>
+                                                <span class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['weekly_percentage'] ?? 0, 1); ?>%
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span class="text-gray-600">Daily Target:</span>
-                                        <span class="font-semibold text-gray-700">
-                                            <?php echo $calorieRecommendation['daily_target']; ?> kcal
-                                        </span>
+                                <?php else: ?>
+                                    <!-- Daily View Display -->
+                                    <div class="mb-4 pb-4 border-b border-gray-200">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-gray-700 font-medium">Daily Calories:</span>
+                                            <span class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-700 text-lg">
+                                                <?php echo number_format($calorieRecommendation['cart_calories'] ?? 0, 0); ?> kcal
+                                            </span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-3 mb-3">
+                                            <div>
+                                                <span class="text-gray-600 block mb-1 text-sm">Daily Target:</span>
+                                                <span class="font-semibold text-gray-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['daily_target'] ?? 0, 0); ?> kcal
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600 block mb-1 text-sm">Weekly Target:</span>
+                                                <span class="font-semibold text-gray-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['weekly_target'] ?? 0, 0); ?> kcal
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <span class="text-gray-600 block mb-1 text-sm">Daily %:</span>
+                                                <span class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['daily_percentage'] ?? 0, 1); ?>%
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600 block mb-1 text-sm">Weekly %:</span>
+                                                <span class="font-bold text-<?php echo $calorieRecommendation['color']; ?>-700 text-base">
+                                                    <?php echo number_format($calorieRecommendation['weekly_percentage'] ?? 0, 1); ?>%
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span class="text-gray-600">Daily %:</span>
-                                        <span class="font-semibold text-<?php echo $calorieRecommendation['color']; ?>-700">
-                                            <?php echo $calorieRecommendation['daily_percentage']; ?>%
-                                        </span>
+                                <?php endif; ?>
+                                
+                                <!-- Breakdown: User + Family Members -->
+                                <?php if (isset($calorieRecommendation['user_target']) && isset($calorieRecommendation['family_target'])): ?>
+                                    <div class="text-xs text-gray-600 space-y-1">
+                                        <div class="flex items-center justify-between">
+                                            <span>• Your Daily Target:</span>
+                                            <span class="font-semibold"><?php echo number_format($calorieRecommendation['user_target'] ?? 0, 0); ?> kcal</span>
+                                        </div>
+                                        <?php if (isset($calorieRecommendation['family_target']) && $calorieRecommendation['family_target'] > 0): ?>
+                                            <div class="flex items-center justify-between">
+                                                <span>• Family Members (<?php echo $calorieRecommendation['family_member_count'] ?? 0; ?>):</span>
+                                                <span class="font-semibold"><?php echo number_format($calorieRecommendation['family_target'] ?? 0, 0); ?> kcal</span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="flex items-center justify-between pt-1 border-t border-gray-300 mt-1">
+                                            <span class="font-semibold text-gray-700">Total Combined:</span>
+                                            <span class="font-bold text-gray-900"><?php echo number_format($calorieRecommendation['daily_target'] ?? 0, 0); ?> kcal</span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span class="text-gray-600">Weekly %:</span>
-                                        <span class="font-semibold text-<?php echo $calorieRecommendation['color']; ?>-700">
-                                            <?php echo $calorieRecommendation['weekly_percentage']; ?>%
-                                        </span>
-                                    </div>
-                                </div>
+                                <?php endif; ?>
                             </div>
                         <?php endif; ?>
 
@@ -234,16 +383,22 @@ ob_start();
                             
                             <div class="flex justify-between items-center py-3 border-b border-gray-100">
                                 <span class="text-gray-600 font-medium">Delivery Fee</span>
-                                <span class="text-gray-900 font-semibold text-lg">৳50.00</span>
+                                <span class="text-gray-900 font-semibold text-lg">
+                                    <?php if ($deliveryFee > 0): ?>
+                                        ৳<?php echo number_format($deliveryFee, 2); ?>
+                                    <?php else: ?>
+                                        <span class="text-green-600">Free</span>
+                                    <?php endif; ?>
+                                </span>
                             </div>
                             <div class="flex justify-between items-center py-3 border-b border-gray-100">
                                 <span class="text-gray-600 font-medium">Service Charge</span>
-                                <span class="text-gray-900 font-semibold text-lg">৳10.00</span>
+                                <span class="text-gray-900 font-semibold text-lg">৳<?php echo number_format($serviceCharge ?? 10.00, 2); ?></span>
                             </div>
                             <hr class="border-gray-300">
                             <div class="flex justify-between items-center py-3">
                                 <span class="text-gray-900 font-bold text-xl">Total Amount</span>
-                                <span class="text-green-600 font-bold text-2xl">৳<?php echo number_format($finalTotal + 60, 2); ?></span>
+                                <span class="text-green-600 font-bold text-2xl">৳<?php echo number_format($totalWithDelivery ?? ($finalTotal + 60), 2); ?></span>
                             </div>
                         </div>
 
@@ -269,7 +424,7 @@ ob_start();
                                 <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
                                 <div>
                                     <p class="text-blue-800 font-semibold text-sm">Free Delivery</p>
-                                    <p class="text-blue-600 text-xs mt-1">On orders above ৳500</p>
+                                    <p class="text-blue-600 text-xs mt-1">On orders above ৳<?php echo number_format($freeDeliveryThreshold ?? 3000, 0); ?></p>
                                 </div>
                             </div>
                         </div>
@@ -290,8 +445,16 @@ ob_start();
 
                         <div class="space-y-3">
                             <?php foreach ($surpriseGiftOptions as $index => $option): ?>
-                                <div class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-yellow-300 surprise-gift-option" 
+                                <?php 
+                                // Check if this gift is already selected
+                                $isSelected = isset($selectedGiftId) && $selectedGiftId == $option['id'];
+                                $optionClasses = $isSelected 
+                                    ? 'bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border-2 border-yellow-400 bg-yellow-50 surprise-gift-option' 
+                                    : 'bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-yellow-300 surprise-gift-option';
+                                ?>
+                                <div class="<?php echo $optionClasses; ?>" 
                                      data-option="<?php echo $index; ?>"
+                                     data-gift-id="<?php echo $option['id']; ?>"
                                      onclick="selectSurpriseGift(<?php echo $index; ?>)">
                                     
                                     <div class="flex items-center justify-between mb-3">
@@ -312,8 +475,8 @@ ob_start();
                                             <span class="inline-block bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-bold px-2 py-1 rounded-full mr-2">
                                                 FREE!
                                             </span>
-                                            <div class="w-6 h-6 bg-gray-200 rounded-full border-2 border-gray-300 surprise-gift-radio flex items-center justify-center">
-                                                <div class="w-3 h-3 bg-yellow-500 rounded-full opacity-0 transition-opacity duration-200"></div>
+                                            <div class="w-6 h-6 <?php echo $isSelected ? 'bg-yellow-100 border-yellow-500' : 'bg-gray-200 border-gray-300'; ?> rounded-full border-2 surprise-gift-radio flex items-center justify-center">
+                                                <div class="w-3 h-3 bg-yellow-500 rounded-full <?php echo $isSelected ? 'opacity-100' : 'opacity-0'; ?> transition-opacity duration-200"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -565,10 +728,31 @@ function updateCartTotals() {
                     subtotalElement.textContent = '৳' + data.subtotal.toFixed(2);
                 }
 
+                // Calculate delivery fee dynamically (free if >= 3000)
+                const freeDeliveryThreshold = 3000;
+                const deliveryFee = data.subtotal >= freeDeliveryThreshold ? 0 : 50;
+                const serviceCharge = 10;
+                const totalWithDelivery = data.subtotal + deliveryFee + serviceCharge;
+                
+                // Update delivery fee display
+                const deliveryFeeElement = document.querySelector('.flex.justify-between.items-center.py-3.border-b span:last-child');
+                if (deliveryFeeElement && deliveryFeeElement.textContent.includes('Delivery Fee')) {
+                    // Find the delivery fee row and update it
+                    const deliveryFeeRow = Array.from(document.querySelectorAll('.flex.justify-between.items-center.py-3')).find(row => {
+                        return row.textContent.includes('Delivery Fee');
+                    });
+                    if (deliveryFeeRow) {
+                        const feeSpan = deliveryFeeRow.querySelector('span:last-child');
+                        if (feeSpan) {
+                            feeSpan.innerHTML = deliveryFee > 0 ? '৳' + deliveryFee.toFixed(2) : '<span class="text-green-600">Free</span>';
+                        }
+                    }
+                }
+                
                 // Update total
                 const totalElement = document.querySelector('.py-3:last-child span:last-child');
                 if (totalElement) {
-                    totalElement.textContent = '৳' + (data.subtotal + 60).toFixed(2);
+                    totalElement.textContent = '৳' + totalWithDelivery.toFixed(2);
                 }
 
                 // Update item count
@@ -690,28 +874,125 @@ document.addEventListener('DOMContentLoaded', function() {
 // Surprise Gift Selection
 let selectedSurpriseGift = null;
 
+// Initialize selected gift on page load
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if (isset($selectedGiftId) && $selectedGiftId): ?>
+        // Find the option with the selected gift ID
+        const selectedOption = document.querySelector(`[data-gift-id="<?php echo $selectedGiftId; ?>"]`);
+        if (selectedOption) {
+            const optionIndex = selectedOption.getAttribute('data-option');
+            selectedSurpriseGift = parseInt(optionIndex);
+            console.log('🎁 Pre-selected surprise gift found:', optionIndex);
+        }
+    <?php endif; ?>
+});
+
 function selectSurpriseGift(optionIndex) {
-    // Remove previous selection
+    console.log('🎁 Selecting surprise gift, option index:', optionIndex);
+    
+    // Disable all options while processing
     document.querySelectorAll('.surprise-gift-option').forEach(option => {
-        option.classList.remove('border-yellow-400', 'bg-yellow-50');
-        option.classList.add('border-transparent');
-        option.querySelector('.surprise-gift-radio').classList.remove('border-yellow-500', 'bg-yellow-100');
-        option.querySelector('.surprise-gift-radio').classList.add('border-gray-300', 'bg-gray-200');
-        option.querySelector('.surprise-gift-radio div').classList.add('opacity-0');
+        option.style.pointerEvents = 'none';
+        option.style.opacity = '0.6';
     });
     
-    // Select new option
+    // Show loading state
     const selectedOption = document.querySelector(`[data-option="${optionIndex}"]`);
-    selectedOption.classList.remove('border-transparent');
-    selectedOption.classList.add('border-yellow-400', 'bg-yellow-50');
-    selectedOption.querySelector('.surprise-gift-radio').classList.remove('border-gray-300', 'bg-gray-200');
-    selectedOption.querySelector('.surprise-gift-radio').classList.add('border-yellow-500', 'bg-yellow-100');
-    selectedOption.querySelector('.surprise-gift-radio div').classList.remove('opacity-0');
+    if (selectedOption) {
+        selectedOption.querySelector('.surprise-gift-radio').innerHTML = '<i class="fas fa-spinner fa-spin text-yellow-500"></i>';
+    }
     
-    selectedSurpriseGift = optionIndex;
-    
-    // Show success message
-    showSurpriseGiftMessage(optionIndex);
+    // Send request to server to save the selection
+    fetch('/cart/select-surprise-gift', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'gift_index=' + optionIndex
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🎁 Server response:', data);
+        
+        if (data.success) {
+            // Remove previous selection visual
+            document.querySelectorAll('.surprise-gift-option').forEach(option => {
+                option.classList.remove('border-yellow-400', 'bg-yellow-50');
+                option.classList.add('border-transparent');
+                option.querySelector('.surprise-gift-radio').classList.remove('border-yellow-500', 'bg-yellow-100');
+                option.querySelector('.surprise-gift-radio').classList.add('border-gray-300', 'bg-gray-200');
+            });
+            
+            // Select new option visually
+            if (selectedOption) {
+                selectedOption.classList.remove('border-transparent');
+                selectedOption.classList.add('border-yellow-400', 'bg-yellow-50');
+                selectedOption.querySelector('.surprise-gift-radio').classList.remove('border-gray-300', 'bg-gray-200');
+                selectedOption.querySelector('.surprise-gift-radio').classList.add('border-yellow-500', 'bg-yellow-100');
+                selectedOption.querySelector('.surprise-gift-radio').innerHTML = '<div class="w-3 h-3 bg-yellow-500 rounded-full"></div>';
+            }
+            
+            selectedSurpriseGift = optionIndex;
+            
+            // Show success message prominently
+            showToast(data.message || 'Successfully added the surprise gift to your shopping cart!', 'success');
+            
+            // If cart was updated, refresh the page to show the new item
+            if (data.cart_updated) {
+                // Update cart count first
+                updateCartCount();
+                
+                // Show a more prominent success message
+                setTimeout(() => {
+                    // Reload the page to show the gift in cart items
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showSurpriseGiftMessage(optionIndex);
+            }
+            
+            // Re-enable all options
+            document.querySelectorAll('.surprise-gift-option').forEach(option => {
+                option.style.pointerEvents = 'auto';
+                option.style.opacity = '1';
+            });
+        } else {
+            // Re-enable all options on error
+            document.querySelectorAll('.surprise-gift-option').forEach(option => {
+                option.style.pointerEvents = 'auto';
+                option.style.opacity = '1';
+            });
+            
+            // Reset the clicked option
+            if (selectedOption) {
+                selectedOption.querySelector('.surprise-gift-radio').innerHTML = '<div class="w-3 h-3 bg-yellow-500 rounded-full opacity-0"></div>';
+            }
+            
+            showToast(data.message || 'Failed to select surprise gift', 'error');
+            
+            if (data.login_required) {
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('🎁 Error selecting surprise gift:', error);
+        
+        // Re-enable all options on error
+        document.querySelectorAll('.surprise-gift-option').forEach(option => {
+            option.style.pointerEvents = 'auto';
+            option.style.opacity = '1';
+        });
+        
+        // Reset the clicked option
+        if (selectedOption) {
+            selectedOption.querySelector('.surprise-gift-radio').innerHTML = '<div class="w-3 h-3 bg-yellow-500 rounded-full opacity-0"></div>';
+        }
+        
+        showToast('Error selecting surprise gift. Please try again.', 'error');
+    });
 }
 
 function showSurpriseGiftMessage(optionIndex) {

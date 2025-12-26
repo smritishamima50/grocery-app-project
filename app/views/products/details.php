@@ -105,6 +105,7 @@ ob_start();
             </div>
 
             <!-- Nutrition Info -->
+            <?php if (isset($product['category_name']) && strtolower(trim($product['category_name'])) !== 'home cleaning'): ?>
             <div>
                 <h3 class="text-xl font-semibold text-gray-900 mb-3">Nutrition Information</h3>
                 <div class="bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl p-6">
@@ -172,9 +173,10 @@ ob_start();
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- Diet Recommendation Badge -->
-            <?php if (isset($_SESSION['user_id']) && isset($isRecommendedForDiet) && $isRecommendedForDiet): ?>
+            <?php if (isset($_SESSION['user_id']) && isset($isRecommendedForDiet) && $isRecommendedForDiet && isset($product['category_name']) && strtolower(trim($product['category_name'])) !== 'home cleaning'): ?>
                 <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl p-4 flex items-center space-x-3 animate-pulse">
                     <i class="fas fa-star text-yellow-300 text-2xl"></i>
                     <div>
@@ -452,16 +454,32 @@ document.querySelector('.buy-now')?.addEventListener('click', function() {
 
 // Add to wishlist functionality
 document.querySelector('.add-to-wishlist')?.addEventListener('click', function() {
+    console.log('❤️ ===== ADD TO WISHLIST CLICKED =====');
+    
     const productId = this.getAttribute('data-product-id');
+    const originalContent = this.innerHTML;
+    
+    console.log('❤️ Product ID:', productId);
+    console.log('❤️ Button element:', this);
 
     // Check if user is logged in
     <?php if (!isset($_SESSION['user_id'])): ?>
+        console.log('❌ User not logged in');
         showToast('Please login to add items to wishlist', 'warning');
         setTimeout(() => {
             window.location.href = '/login';
         }, 2000);
         return;
+    <?php else: ?>
+        console.log('✅ User is logged in with ID: <?php echo $_SESSION['user_id']; ?>');
     <?php endif; ?>
+
+    // Set loading state
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span class="ml-2">Adding...</span>';
+    
+    console.log('❤️ Making request to: /wishlist/add');
+    console.log('❤️ Request body: product_id=' + productId);
 
     fetch('/wishlist/add', {
         method: 'POST',
@@ -470,20 +488,86 @@ document.querySelector('.add-to-wishlist')?.addEventListener('click', function()
         },
         body: 'product_id=' + productId
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('❤️ Response received:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            contentType: response.headers.get('content-type')
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+        
+        return response.text().then(text => {
+            console.log('❤️ Raw response text:', text);
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('❤️ Failed to parse JSON response:', e);
+                console.error('❤️ Response was:', text);
+                throw new Error('Invalid JSON response: ' + text.substring(0, 100));
+            }
+        });
+    })
     .then(data => {
+        console.log('❤️ Parsed response data:', data);
+        
         if (data.success) {
-            showToast('Added to wishlist!', 'success');
-            this.innerHTML = '<i class="fas fa-heart text-red-500"></i><span class="ml-2">Added to Wishlist</span>';
+            console.log('✅ SUCCESS: Product added to wishlist!');
+            console.log('✅ Wishlist ID:', data.wishlist_id);
+            console.log('✅ Product:', data.product_name);
+            
+            // Show prominent success message
+            showToast('Successfully added to wishlist!', 'success');
+            
+            // Update button appearance
+            this.innerHTML = '<i class="fas fa-heart text-red-500"></i><span class="ml-2 text-red-500 font-semibold">Added to Wishlist</span>';
+            this.classList.add('text-red-600');
+            
+            // Update wishlist badge count
+            updateWishlistCount();
+            
+            // Keep button disabled to show it's added
+            // User can refresh page to reset if needed
         } else {
+            console.error('❌ FAILED:', data.message);
             showToast(data.message || 'Failed to add to wishlist', 'error');
+            this.disabled = false;
+            this.innerHTML = originalContent;
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showToast('An error occurred', 'error');
+        console.error('❤️ ===== ERROR OCCURRED =====');
+        console.error('❤️ Error type:', error.constructor.name);
+        console.error('❤️ Error message:', error.message);
+        console.error('❤️ Error stack:', error.stack);
+        
+        showToast('Error: ' + error.message, 'error');
+        this.disabled = false;
+        this.innerHTML = originalContent;
     });
 });
+
+// Update wishlist count function
+function updateWishlistCount() {
+    fetch('/wishlist/count')
+        .then(response => response.json())
+        .then(data => {
+            console.log('❤️ Wishlist count:', data.count);
+            const wishlistBadge = document.querySelector('.wishlist-badge');
+            if (wishlistBadge) {
+                if (data.count > 0) {
+                    wishlistBadge.textContent = data.count;
+                    wishlistBadge.classList.remove('hidden');
+                } else {
+                    wishlistBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(error => console.error('Error updating wishlist count:', error));
+}
 
 // Share functionality
 document.querySelector('.share-product')?.addEventListener('click', function() {

@@ -3,9 +3,62 @@ require_once 'BaseController.php';
 
 class ProductController extends BaseController {
     public function index() {
-        $category = $_GET['category'] ?? null;
+        // Get and validate category parameter - can be either ID (integer) or name (string)
+        $category = null;
+        $categoryId = null;
+        if (isset($_GET['category']) && !empty($_GET['category'])) {
+            $categoryParam = $_GET['category'];
+            
+            // First, try to validate as integer (category ID)
+            $categoryId = filter_var($categoryParam, FILTER_VALIDATE_INT);
+            
+            // If not a valid integer, treat it as a category name and look it up
+            if ($categoryId === false || $categoryId <= 0) {
+                // Look up category by name (case-insensitive, flexible matching)
+                $stmt = $this->pdo->prepare("SELECT id FROM categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR LOWER(TRIM(name)) LIKE LOWER(TRIM(?))");
+                $searchName = trim($categoryParam);
+                $stmt->execute([$searchName, "%$searchName%"]);
+                $categoryResult = $stmt->fetch();
+                
+                if ($categoryResult) {
+                    $categoryId = $categoryResult['id'];
+                } else {
+                    // Try common variations
+                    $categoryMappings = [
+                        'fruits' => 'Fruits & Vegetables',
+                        'vegetables' => 'Fruits & Vegetables',
+                        'fruit' => 'Fruits & Vegetables',
+                        'vegetable' => 'Fruits & Vegetables',
+                        'spices' => 'Spices & Herbs',
+                        'spice' => 'Spices & Herbs',
+                        'masala' => 'Spices & Herbs',
+                        'herbs' => 'Spices & Herbs',
+                        'herb' => 'Spices & Herbs',
+                        'baking' => 'Baking Needs',
+                        'bakery' => 'Bakery',
+                        'dairy' => 'Dairy & Eggs',
+                        'eggs' => 'Dairy & Eggs',
+                        'meat' => 'Meat & Poultry',
+                        'poultry' => 'Meat & Poultry',
+                        'natural products' => 'Other Natural Products',
+                        'natural' => 'Other Natural Products'
+                    ];
+                    
+                    $searchLower = strtolower(trim($categoryParam));
+                    if (isset($categoryMappings[$searchLower])) {
+                        $stmt = $this->pdo->prepare("SELECT id FROM categories WHERE name = ?");
+                        $stmt->execute([$categoryMappings[$searchLower]]);
+                        $categoryResult = $stmt->fetch();
+                        if ($categoryResult) {
+                            $categoryId = $categoryResult['id'];
+                        }
+                    }
+                }
+            }
+        }
+        
         $search = $_GET['search'] ?? null;
-        $page = $_GET['page'] ?? 1;
+        $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
         $limit = 12;
         $offset = ($page - 1) * $limit;
 
@@ -15,9 +68,10 @@ class ProductController extends BaseController {
         // Always filter for active products
         $where[] = "p.is_active = 1";
 
-        if ($category) {
+        if ($categoryId) {
             $where[] = "p.category_id = ?";
-            $params[] = $category;
+            $params[] = $categoryId;
+            $category = $categoryId; // Store for view
         }
 
         if ($search) {
@@ -25,6 +79,7 @@ class ProductController extends BaseController {
             $params[] = "%$search%";
         }
 
+        // Build WHERE clause - always has at least is_active = 1, so never empty
         $whereClause = "WHERE " . implode(" AND ", $where);
 
         // Get products - ordered by creation date (newest first) so new products appear
@@ -38,10 +93,16 @@ class ProductController extends BaseController {
         $total = $stmt->fetch()['total'];
         $totalPages = ceil($total / $limit);
 
-        // Get categories for filter
-        $stmt = $this->pdo->prepare("SELECT * FROM categories");
+        // Get categories for filter - ordered by name for better UX
+        $stmt = $this->pdo->prepare("SELECT * FROM categories ORDER BY name ASC");
         $stmt->execute();
         $categories = $stmt->fetchAll();
+
+        // Log for debugging (remove in production)
+        if ($category) {
+            error_log("ProductController: Filtering by category ID: $category");
+            error_log("ProductController: Found " . count($products) . " products");
+        }
 
         $this->render('products/index', [
             'products' => $products,

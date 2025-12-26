@@ -107,6 +107,12 @@
                     Users
                 </a>
                 
+                <!-- Drivers -->
+                <a href="/admin/drivers" class="nav-item group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors <?php echo ($currentPage === 'drivers') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'; ?>">
+                    <i class="fas fa-truck mr-3 text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400"></i>
+                    Drivers
+                </a>
+                
                 <!-- Subscriptions -->
                 <a href="/admin/subscriptions" class="nav-item group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors <?php echo ($currentPage === 'subscriptions') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'; ?>">
                     <i class="fas fa-sync-alt mr-3 text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400"></i>

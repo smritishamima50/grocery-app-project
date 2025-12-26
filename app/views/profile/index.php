@@ -326,6 +326,90 @@ ob_start();
                             </p>
                         </div>
                     <?php endif; ?>
+
+                    <!-- Family Member Profiles Section -->
+                    <div class="mt-8 pt-8 border-t border-gray-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    <i class="fas fa-users mr-2 text-orange-600"></i>
+                                    Family Member Profiles
+                                </h3>
+                                <p class="text-sm text-gray-600 mt-1">Add detailed diet profiles for each family member to get personalized recommendations</p>
+                            </div>
+                            <button onclick="openFamilyMemberModal()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center">
+                                <i class="fas fa-plus mr-2"></i>Add Family Member
+                            </button>
+                        </div>
+
+                        <!-- Family Members List -->
+                        <div id="family-members-list" class="space-y-4">
+                            <?php if (!empty($familyMembers)): ?>
+                                <?php foreach ($familyMembers as $member): ?>
+                                    <div class="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-6 family-member-card" data-member-id="<?php echo $member['id']; ?>">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <div class="flex items-center space-x-3 mb-3">
+                                                    <span class="bg-orange-200 text-orange-800 text-sm font-semibold px-3 py-1 rounded-full capitalize">
+                                                        <?php echo ucfirst($member['member_type']); ?>
+                                                    </span>
+                                                    <span class="text-gray-700 font-medium">
+                                                        <?php echo $member['member_count']; ?> <?php echo $member['member_count'] == 1 ? 'member' : 'members'; ?>
+                                                    </span>
+                                                    <?php if ($member['diet_goal'] && $member['diet_goal'] != 'general'): ?>
+                                                        <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                                            <?php echo ucfirst(str_replace('_', ' ', $member['diet_goal'])); ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                
+                                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                    <?php if ($member['calorie_target']): ?>
+                                                        <div>
+                                                            <span class="text-gray-600">Calorie Target:</span>
+                                                            <p class="font-semibold text-gray-900"><?php echo $member['calorie_target']; ?> kcal</p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <?php if ($member['age']): ?>
+                                                        <div>
+                                                            <span class="text-gray-600">Age:</span>
+                                                            <p class="font-semibold text-gray-900"><?php echo $member['age']; ?> years</p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <?php if ($member['current_weight']): ?>
+                                                        <div>
+                                                            <span class="text-gray-600">Weight:</span>
+                                                            <p class="font-semibold text-gray-900"><?php echo $member['current_weight']; ?> kg</p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <?php if ($member['activity_level']): ?>
+                                                        <div>
+                                                            <span class="text-gray-600">Activity:</span>
+                                                            <p class="font-semibold text-gray-900"><?php echo ucfirst(str_replace('_', ' ', $member['activity_level'])); ?></p>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <div class="flex space-x-2 ml-4">
+                                                <button onclick="editFamilyMember(<?php echo htmlspecialchars(json_encode($member)); ?>)" class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button onclick="deleteFamilyMember(<?php echo $member['id']; ?>)" class="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                                    <i class="fas fa-users text-gray-400 text-4xl mb-3"></i>
+                                    <p class="text-gray-600 mb-2">No family member profiles added yet</p>
+                                    <p class="text-sm text-gray-500">Add family members to get personalized product recommendations for your entire family</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -608,6 +692,148 @@ ob_start();
                         <i class="fas fa-save mr-2"></i>Save Address
                     </button>
                     <button type="button" onclick="closeAddressModal()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl hover:bg-gray-400 transition-colors duration-200">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Family Member Modal -->
+<div id="family-member-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 animate-bounce-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900" id="family-member-modal-title">Add Family Member Profile</h3>
+                <button onclick="closeFamilyMemberModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="family-member-form" class="space-y-6">
+                <input type="hidden" id="member_id" name="member_id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="member_type" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Member Type <span class="text-red-500">*</span>
+                        </label>
+                        <select id="member_type" name="member_type" required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300">
+                            <option value="child">Child</option>
+                            <option value="teenager">Teenager</option>
+                            <option value="adolescent">Adolescent</option>
+                            <option value="adult" selected>Adult</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="member_count" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Number of Members <span class="text-red-500">*</span>
+                        </label>
+                        <input type="number" id="member_count" name="member_count" min="1" max="50" value="1" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300"
+                               placeholder="e.g., 1">
+                        <p class="text-xs text-gray-500 mt-1">How many family members of this type?</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="member_diet_goal" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Diet Goal
+                    </label>
+                    <select id="member_diet_goal" name="diet_goal"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300">
+                        <option value="general">General Health</option>
+                        <option value="weight_loss">Weight Loss</option>
+                        <option value="weight_gain">Weight Gain</option>
+                        <option value="muscle_gain">Muscle Building</option>
+                        <option value="diabetes_friendly">Diabetes Management</option>
+                        <option value="low_sodium">Low Sodium</option>
+                        <option value="vegetarian">Vegetarian</option>
+                        <option value="vegan">Vegan</option>
+                        <option value="keto">Ketogenic</option>
+                        <option value="paleo">Paleolithic</option>
+                        <option value="mediterranean">Mediterranean</option>
+                        <option value="heart_healthy">Heart Health</option>
+                        <option value="low_carb">Low Carbohydrate</option>
+                        <option value="high_protein">High Protein</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="member_calorie_target" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Daily Calorie Target (kcal)
+                            <span class="text-gray-500 text-xs ml-2">(Optional)</span>
+                        </label>
+                        <input type="number" id="member_calorie_target" name="calorie_target" min="800" max="5000" step="50"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300"
+                               placeholder="e.g., 2000">
+                    </div>
+
+                    <div>
+                        <label for="member_activity_level" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Activity Level
+                        </label>
+                        <select id="member_activity_level" name="activity_level"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300">
+                            <option value="sedentary">Sedentary (Little/No Exercise)</option>
+                            <option value="lightly_active">Lightly Active (Light Exercise 1-3 days/week)</option>
+                            <option value="moderately_active" selected>Moderately Active (Moderate Exercise 3-5 days/week)</option>
+                            <option value="very_active">Very Active (Heavy Exercise 6-7 days/week)</option>
+                            <option value="extremely_active">Extremely Active (Very Heavy Exercise, Physical Job)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="member_age" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Age (years)
+                            <span class="text-gray-500 text-xs ml-2">(Optional)</span>
+                        </label>
+                        <input type="number" id="member_age" name="age" min="1" max="120"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300"
+                               placeholder="e.g., 25">
+                    </div>
+
+                    <div>
+                        <label for="member_current_weight" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Current Weight (kg)
+                            <span class="text-gray-500 text-xs ml-2">(Optional)</span>
+                        </label>
+                        <input type="number" id="member_current_weight" name="current_weight" min="5" max="300" step="0.1"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300"
+                               placeholder="e.g., 70.5">
+                    </div>
+
+                    <div>
+                        <label for="member_target_weight" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Target Weight (kg)
+                            <span class="text-gray-500 text-xs ml-2">(Optional)</span>
+                        </label>
+                        <input type="number" id="member_target_weight" name="target_weight" min="5" max="300" step="0.1"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300"
+                               placeholder="e.g., 65.0">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="member_height" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Height (cm)
+                        <span class="text-gray-500 text-xs ml-2">(Optional)</span>
+                    </label>
+                    <input type="number" id="member_height" name="height" min="50" max="250" step="0.1"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-300"
+                           placeholder="e.g., 170.0">
+                </div>
+
+                <div class="flex space-x-4 pt-4">
+                    <button type="submit" class="flex-1 bg-orange-600 text-white py-3 rounded-xl hover:bg-orange-700 transition-colors duration-200">
+                        <i class="fas fa-save mr-2"></i>Save Family Member
+                    </button>
+                    <button type="button" onclick="closeFamilyMemberModal()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl hover:bg-gray-400 transition-colors duration-200">
                         Cancel
                     </button>
                 </div>
@@ -1033,6 +1259,155 @@ function cancelSubscription(id) {
         });
     }
 }
+
+// Family Member Management Functions
+function openFamilyMemberModal() {
+    console.log('👨‍👩‍👧‍👦 Opening family member modal');
+    document.getElementById('family-member-modal-title').textContent = 'Add Family Member Profile';
+    document.getElementById('family-member-form').reset();
+    document.getElementById('member_id').value = '';
+    document.getElementById('member_type').value = 'adult';
+    document.getElementById('member_count').value = 1;
+    document.getElementById('member_diet_goal').value = 'general';
+    document.getElementById('member_activity_level').value = 'moderately_active';
+    document.getElementById('family-member-modal').classList.remove('hidden');
+}
+
+function editFamilyMember(member) {
+    console.log('👨‍👩‍👧‍👦 Editing family member:', member);
+    document.getElementById('family-member-modal-title').textContent = 'Edit Family Member Profile';
+    document.getElementById('member_id').value = member.id;
+    document.getElementById('member_type').value = member.member_type || 'adult';
+    document.getElementById('member_count').value = member.member_count || 1;
+    document.getElementById('member_diet_goal').value = member.diet_goal || 'general';
+    document.getElementById('member_calorie_target').value = member.calorie_target || '';
+    document.getElementById('member_current_weight').value = member.current_weight || '';
+    document.getElementById('member_target_weight').value = member.target_weight || '';
+    document.getElementById('member_height').value = member.height || '';
+    document.getElementById('member_age').value = member.age || '';
+    document.getElementById('member_activity_level').value = member.activity_level || 'moderately_active';
+    document.getElementById('family-member-modal').classList.remove('hidden');
+}
+
+function closeFamilyMemberModal() {
+    console.log('👨‍👩‍👧‍👦 Closing family member modal');
+    document.getElementById('family-member-modal').classList.add('hidden');
+}
+
+function deleteFamilyMember(memberId) {
+    if (confirm('Are you sure you want to delete this family member profile?')) {
+        console.log('🗑️ Deleting family member with ID:', memberId);
+        const formData = new FormData();
+        formData.append('member_id', memberId);
+        
+        fetch('/profile/delete-family-member', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log('🗑️ Delete response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('🗑️ Delete response data:', data);
+            if (data.success) {
+                showToast('Family member profile deleted successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(data.message || 'Failed to delete profile', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('🗑️ Error deleting family member:', error);
+            showToast('Error deleting profile: ' + error.message, 'error');
+        });
+    }
+}
+
+// Family Member Form Submission - Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    const familyMemberForm = document.getElementById('family-member-form');
+    if (familyMemberForm) {
+        familyMemberForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('👨‍👩‍👧‍👦 ===== FAMILY MEMBER FORM SUBMITTED =====');
+            
+            const formData = new FormData(this);
+            const memberId = document.getElementById('member_id').value;
+            
+            // Log form data
+            console.log('👨‍👩‍👧‍👦 Form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`👨‍👩‍👧‍👦   ${key}: ${value}`);
+            }
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+            submitButton.disabled = true;
+            
+            console.log('👨‍👩‍👧‍👦 Making request to: /profile/save-family-member');
+            
+            fetch('/profile/save-family-member', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('👨‍👩‍👧‍👦 Response received:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                }
+                
+                return response.text().then(text => {
+                    console.log('👨‍👩‍👧‍👦 Raw response text:', text);
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('👨‍👩‍👧‍👦 Failed to parse JSON response:', e);
+                        throw new Error('Invalid JSON response: ' + text);
+                    }
+                });
+            })
+            .then(data => {
+                console.log('👨‍👩‍👧‍👦 Parsed response data:', data);
+                
+                if (data.success) {
+                    console.log('✅ SUCCESS: Family member profile saved successfully!');
+                    showToast('Family member profile saved successfully', 'success');
+                    closeFamilyMemberModal();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    console.error('❌ FAILED:', data.errors ? data.errors.join(', ') : data.message);
+                    const errorMessage = data.errors ? data.errors.join(', ') : (data.message || 'Failed to save profile');
+                    showToast(errorMessage, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('👨‍👩‍👧‍👦 ===== ERROR OCCURRED =====');
+                console.error('👨‍👩‍👧‍👦 Error type:', error.constructor.name);
+                console.error('👨‍👩‍👧‍👦 Error message:', error.message);
+                console.error('👨‍👩‍👧‍👦 Error stack:', error.stack);
+                
+                showToast('Error saving profile: ' + error.message, 'error');
+            })
+            .finally(() => {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
+        });
+        console.log('✅ Family member form event listener attached');
+    } else {
+        console.error('❌ Family member form not found!');
+    }
+});
 </script>
 
 <?php

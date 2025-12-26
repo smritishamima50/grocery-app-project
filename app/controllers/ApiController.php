@@ -32,15 +32,10 @@ class ApiController extends BaseController {
      * Check admin access and return JSON response
      */
     private function requireAdminJson() {
-        if (!$this->adminMiddleware || !$this->adminMiddleware->isAdmin()) {
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(403);
-            }
-            echo json_encode(['success' => false, 'error' => 'Access denied. Admin privileges required.']);
+        if (!$this->adminMiddleware->isAdmin()) {
+            $this->setJsonHeaders();
+            http_response_code(403);
+            echo json_encode(['error' => 'Access denied. Admin privileges required.']);
             exit;
         }
     }
@@ -357,15 +352,7 @@ class ApiController extends BaseController {
      * PATCH /api/admin/orders/:id
      */
     public function updateOrder($orderId) {
-        // Disable error display to prevent PHP errors from corrupting JSON response
-        $displayErrors = ini_get('display_errors');
-        ini_set('display_errors', '0');
-        
-        // Start output buffering as early as possible to catch any accidental output
-        // Clear any existing output buffer first
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
+        // Start output buffering to catch any accidental output
         ob_start();
         
         error_log("========================================");
@@ -379,37 +366,21 @@ class ApiController extends BaseController {
         
         // Check admin access
         if (!$this->adminMiddleware->isAdmin()) {
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(403);
-            }
+            ob_end_clean();
+            http_response_code(403);
             $errorMsg = 'Access denied. Admin privileges required. User ID: ' . ($_SESSION['user_id'] ?? 'NOT SET') . ', Role: ' . ($_SESSION['role'] ?? 'NOT SET');
             error_log("❌ " . $errorMsg);
             echo json_encode(['success' => false, 'error' => $errorMsg]);
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
             exit;
         }
         
         error_log("✅ Admin access verified for user ID: " . $_SESSION['user_id']);
         
         if ($_SERVER['REQUEST_METHOD'] !== 'PATCH') {
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(405);
-            }
+            ob_end_clean();
             error_log("❌ Invalid method: " . $_SERVER['REQUEST_METHOD'] . " (expected PATCH)");
+            http_response_code(405);
             echo json_encode(['success' => false, 'error' => 'Method not allowed. Expected PATCH, got ' . $_SERVER['REQUEST_METHOD']]);
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
             exit;
         }
 
@@ -418,72 +389,40 @@ class ApiController extends BaseController {
         error_log("📥 Raw input received: " . ($rawInput ? substr($rawInput, 0, 500) : 'EMPTY'));
         
         if (empty($rawInput)) {
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(400);
-            }
+            ob_end_clean();
             error_log("❌ Empty input received");
+            http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Request body is empty']);
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
             exit;
         }
         
         $input = json_decode($rawInput, true);
         $jsonError = json_last_error();
         if ($jsonError !== JSON_ERROR_NONE) {
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(400);
-            }
+            ob_end_clean();
             error_log("❌ JSON decode error: " . json_last_error_msg());
+            http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid JSON: ' . json_last_error_msg()]);
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
             exit;
         }
         
         error_log("📥 Parsed input: " . print_r($input, true));
 
         $newStatus = $input['status'] ?? null;
-        // Handle assigned_driver: empty string, null, or actual value
-        $assignedDriver = isset($input['assigned_driver']) ? $input['assigned_driver'] : null;
-        if ($assignedDriver === '' || $assignedDriver === null) {
-            $assignedDriver = null; // Normalize empty strings to null
-        } else {
-            $assignedDriver = trim((string)$assignedDriver); // Trim whitespace
-        }
+        $assignedDriver = $input['assigned_driver'] ?? null;
         $adminNotes = $input['admin_notes'] ?? null;
         
         error_log("📊 Extracted params:");
         error_log("   - newStatus: " . ($newStatus ?? 'NULL'));
-        error_log("   - assignedDriver: " . ($assignedDriver ?? 'NULL') . " (type: " . gettype($assignedDriver) . ")");
+        error_log("   - assignedDriver: " . ($assignedDriver ?? 'NULL'));
         error_log("   - adminNotes: " . ($adminNotes ? 'SET' : 'NULL'));
 
         // Validate that at least one field is being updated
-        // Note: assignedDriver can be null (unassigning), so check if it was provided in input
-        $hasAssignedDriverUpdate = isset($input['assigned_driver']); // true even if null
-        if ($newStatus === null && !$hasAssignedDriverUpdate && $adminNotes === null) {
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(400);
-            }
+        if ($newStatus === null && $assignedDriver === null && $adminNotes === null) {
+            ob_end_clean();
             error_log("❌ No fields to update");
+            http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'At least one field (status, assigned_driver, or admin_notes) must be provided']);
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
             exit;
         }
 
@@ -494,18 +433,10 @@ class ApiController extends BaseController {
             $currentOrder = $checkStmt->fetch();
             
             if (!$currentOrder) {
-                while (ob_get_level()) {
-                    ob_end_clean();
-                }
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(404);
-                }
+                ob_end_clean();
                 error_log("❌ Order not found: ID $orderId");
+                http_response_code(404);
                 echo json_encode(['success' => false, 'error' => "Order #$orderId not found"]);
-                if (isset($displayErrors)) {
-                    ini_set('display_errors', $displayErrors);
-                }
                 exit;
             }
             
@@ -518,11 +449,13 @@ class ApiController extends BaseController {
 
             $oldStatus = $currentOrder['status'];
             $statusChanged = ($newStatus !== null && $newStatus !== $oldStatus);
+            
+            // Store validated driver value for later use in verification
+            $validatedDriverValue = null;
 
             // Update order - build update fields dynamically
             $updateFields = [];
             $params = [];
-            $driverParamIndex = -1; // Track which param index is assigned_driver
 
             // Update status if provided and different from current
             if ($newStatus !== null) {
@@ -530,12 +463,40 @@ class ApiController extends BaseController {
                 $params[] = $newStatus;
             }
 
-            if ($assignedDriver !== null || isset($input['assigned_driver'])) {
-                // Always include assigned_driver in update if it was provided (even if null/unassigning)
+            if ($assignedDriver !== null) {
+                // Convert empty string to null for database consistency
+                $driverInput = (trim($assignedDriver) === '' || $assignedDriver === null) ? null : trim($assignedDriver);
+                
+                // If a driver name is provided, validate it exists in the database and get the exact name
+                $driverValue = null;
+                if ($driverInput) {
+                    // Look up the driver in the database (case-insensitive) to get the exact name
+                    $driverCheckStmt = $this->pdo->prepare("SELECT name FROM drivers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND is_active = 1 LIMIT 1");
+                    $driverCheckStmt->execute([$driverInput]);
+                    $driverRecord = $driverCheckStmt->fetch();
+                    
+                    if ($driverRecord) {
+                        // Use the exact name from the database (preserves correct capitalization)
+                        $driverValue = trim($driverRecord['name']);
+                        $validatedDriverValue = $driverValue; // Store for verification
+                        error_log("✅ Driver validated and found in database: '" . $driverValue . "' (input was: '" . $driverInput . "')");
+                    } else {
+                        error_log("❌ ERROR: Driver name '" . $driverInput . "' not found in active drivers list");
+                        // Don't save invalid driver names - return error
+                        $this->pdo->rollback();
+                        ob_end_clean();
+                        http_response_code(400);
+                        echo json_encode([
+                            'success' => false, 
+                            'error' => "Driver '" . htmlspecialchars($driverInput) . "' not found. Please select a valid driver from the list."
+                        ]);
+                        exit;
+                    }
+                }
+                
                 $updateFields[] = 'assigned_driver = ?';
-                $params[] = $assignedDriver; // Already normalized to null or trimmed string above
-                $driverParamIndex = count($params) - 1; // Track the index
-                error_log("   ✅ Added assigned_driver to update at param index $driverParamIndex: " . var_export($assignedDriver, true));
+                $params[] = $driverValue;
+                error_log("🔧 Driver value to set: " . ($driverValue ?? 'NULL'));
             }
 
             if ($adminNotes !== null) {
@@ -546,18 +507,9 @@ class ApiController extends BaseController {
             // Only update if there are fields to update
             if (empty($updateFields)) {
                 $this->pdo->rollback();
-                while (ob_get_level()) {
-                    ob_end_clean();
-                }
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(400);
-                }
+                ob_end_clean();
                 error_log("⚠️ WARNING: No update fields to process!");
                 echo json_encode(['success' => false, 'error' => 'No fields to update']);
-                if (isset($displayErrors)) {
-                    ini_set('display_errors', $displayErrors);
-                }
                 exit;
             }
             
@@ -566,16 +518,6 @@ class ApiController extends BaseController {
             
             // Build SQL - ensure updated_at is always set
             $sql = "UPDATE orders SET " . implode(', ', $updateFields) . ", updated_at = NOW() WHERE id = ?";
-            
-            // CRITICAL DEBUG: Log the exact SQL and params before execution
-            error_log("🔍 PRE-UPDATE VERIFICATION:");
-            error_log("   - Update fields count: " . count($updateFields));
-            error_log("   - Update fields: " . implode(', ', $updateFields));
-            error_log("   - Params count: " . count($params));
-            foreach ($updateFields as $idx => $field) {
-                error_log("   - Field $idx ($field): " . var_export($params[$idx] ?? 'MISSING', true));
-            }
-            error_log("   - Order ID (last param): " . end($params));
             
             error_log("🔧 ========== EXECUTING DATABASE UPDATE ==========");
             error_log("🔧 SQL Query: $sql");
@@ -604,15 +546,6 @@ class ApiController extends BaseController {
                 $rowsAffected = $stmt->rowCount();
                 error_log("✅ SQL executed. Result: " . ($result ? 'TRUE' : 'FALSE') . ", Rows affected: $rowsAffected");
                 
-                // CRITICAL: Log what we're trying to update
-                if ($driverParamIndex >= 0) {
-                    error_log("🔍 DRIVER UPDATE CHECK:");
-                    error_log("   - assigned_driver param index: $driverParamIndex");
-                    error_log("   - assigned_driver value in params: " . var_export($params[$driverParamIndex] ?? 'MISSING', true));
-                    error_log("   - assigned_driver normalized: " . var_export($assignedDriver, true));
-                    error_log("   - Value type: " . gettype($params[$driverParamIndex] ?? null));
-                }
-                
             } catch (PDOException $e) {
                 error_log("❌ PDO EXCEPTION: " . $e->getMessage());
                 error_log("❌ Error Code: " . $e->getCode());
@@ -621,127 +554,136 @@ class ApiController extends BaseController {
             
             // CRITICAL: Verify the update actually happened BEFORE commit
             if ($rowsAffected === 0) {
-                // Check if values are already the same (this is acceptable)
-                $checkSameStmt = $this->pdo->prepare("SELECT status, assigned_driver FROM orders WHERE id = ?");
-                $checkSameStmt->execute([$orderId]);
-                $currentValues = $checkSameStmt->fetch();
-                
-                $valuesAlreadySame = true;
-                if ($newStatus !== null && $currentValues['status'] !== $newStatus) {
-                    $valuesAlreadySame = false;
-                }
-                if ($assignedDriver !== null || isset($input['assigned_driver'])) {
-                    $expectedDriver = ($assignedDriver === '' || $assignedDriver === null) ? null : trim((string)$assignedDriver);
-                    $currentDriver = ($currentValues['assigned_driver'] === '' || $currentValues['assigned_driver'] === null) ? null : trim((string)($currentValues['assigned_driver'] ?? ''));
-                    if ($currentDriver !== $expectedDriver) {
-                        $valuesAlreadySame = false;
-                    }
-                }
-                
-                if ($valuesAlreadySame) {
-                    // Values are already set correctly, this is fine - commit and continue
-                    error_log("ℹ️ No rows affected but values are already correct - this is expected");
-                    $this->pdo->commit();
-                } else {
-                    // This is a SERIOUS problem - the update didn't affect any rows
-                    $this->pdo->rollback();
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    
-                    error_log("❌ ========== CRITICAL ERROR: NO ROWS AFFECTED ==========");
-                    error_log("❌ UPDATE query executed successfully BUT 0 ROWS WERE UPDATED!");
-                    error_log("❌ Order ID: $orderId");
-                    error_log("❌ SQL: $sql");
-                    error_log("❌ Params: " . print_r($params, true));
-                
-                // Check if order still exists and get current values
+                // Check if order still exists and get current values BEFORE rollback
                 $checkStmt = $this->pdo->prepare("SELECT id, status, assigned_driver FROM orders WHERE id = ?");
                 $checkStmt->execute([$orderId]);
                 $checkOrder = $checkStmt->fetch();
                 
                 if (!$checkOrder) {
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                        http_response_code(404);
-                    }
                     error_log("❌ Order #$orderId DOES NOT EXIST in database!");
+                    $this->pdo->rollback();
+                    ob_end_clean();
+                    http_response_code(404);
                     echo json_encode(['success' => false, 'error' => "Order #$orderId not found in database"]);
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
+                    exit;
+                }
+                
+                error_log("⚠️ UPDATE returned 0 rows affected - checking if values are already the same");
+                error_log("   Current status: {$checkOrder['status']}");
+                error_log("   Current driver: " . ($checkOrder['assigned_driver'] ?? 'NULL'));
+                error_log("   Trying to set status: " . ($newStatus ?? 'NULL'));
+                error_log("   Trying to set driver: " . ($assignedDriver ?? 'NULL'));
+                
+                // Check if values are already the same (would cause 0 rows affected)
+                $alreadySame = true;
+                if ($newStatus !== null && $checkOrder['status'] !== $newStatus) {
+                    $alreadySame = false;
+                }
+                if ($assignedDriver !== null) {
+                    // Use validated driver value for comparison (case-insensitive)
+                    $expectedDriver = $validatedDriverValue;
+                    if ($expectedDriver === null && $assignedDriver) {
+                        $expectedDriver = (trim($assignedDriver) === '' || $assignedDriver === null) ? null : trim($assignedDriver);
                     }
+                    
+                    $currentDriverRaw = $checkOrder['assigned_driver'] ?? null;
+                    $currentDriver = ($currentDriverRaw === '' || $currentDriverRaw === null) ? null : trim($currentDriverRaw);
+                    
+                    // Compare using case-insensitive normalized values
+                    $currentNormalized = $currentDriver ? strtolower(trim($currentDriver)) : '';
+                    $expectedNormalized = $expectedDriver ? strtolower(trim($expectedDriver)) : '';
+                    
+                    error_log("   Driver comparison: current='$currentNormalized' vs expected='$expectedNormalized'");
+                    
+                    if ($currentNormalized !== $expectedNormalized && 
+                        !(($currentNormalized === '') && ($expectedNormalized === ''))) {
+                        $alreadySame = false;
+                        error_log("   ❌ Drivers are DIFFERENT - this is a problem!");
+                    } else {
+                        error_log("   ✅ Drivers are the same");
+                    }
+                }
+                
+                // If values are already the same, commit and return success
+                if ($alreadySame) {
+                    error_log("ℹ️ Values are already set to what we're trying to set - no update needed");
+                    // Commit the transaction (nothing changed, but transaction is still open)
+                    $this->pdo->commit();
+                    
+                    // Normalize driver value for response
+                    $responseDriverValue = $checkOrder['assigned_driver'] ?? null;
+                    if ($responseDriverValue === '' || $responseDriverValue === null) {
+                        $responseDriverValue = null;
+                    } else {
+                        $responseDriverValue = trim($responseDriverValue);
+                    }
+                    
+                    $response = [
+                        'success' => true,
+                        'message' => $responseDriverValue ? 'Driver is already assigned to this order' : 'Order status is already up to date',
+                        'database_updated' => true,
+                        'verification_passed' => true
+                    ];
+                    
+                    if ($newStatus !== null) {
+                        $response['new_status'] = $checkOrder['status'];
+                    }
+                    if ($assignedDriver !== null) {
+                        $response['assigned_driver'] = $responseDriverValue;
+                    }
+                    
+                    ob_end_clean();
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode($response);
                     exit;
                 } else {
-                    error_log("❌ Order exists but update failed:");
-                    error_log("   Current status: {$checkOrder['status']}");
-                    error_log("   Current driver: " . ($checkOrder['assigned_driver'] ?? 'NULL'));
-                    error_log("   Trying to set status: " . ($newStatus ?? 'NULL'));
-                    error_log("   Trying to set driver: " . ($assignedDriver ?? 'NULL'));
+                    // Values are different but 0 rows affected - this is a problem!
+                    error_log("❌ ========== CRITICAL ERROR: NO ROWS AFFECTED ==========");
+                    error_log("❌ UPDATE query executed successfully BUT 0 ROWS WERE UPDATED!");
+                    error_log("❌ Order ID: $orderId");
+                    error_log("❌ SQL: $sql");
+                    error_log("❌ Params: " . print_r($params, true));
+                    error_log("❌ This should NOT happen - values are different but update failed!");
                     
-                    // Check if values are already the same (would cause 0 rows affected)
-                    $alreadySame = true;
-                    if ($newStatus !== null && $checkOrder['status'] !== $newStatus) {
-                        $alreadySame = false;
-                    }
-                    // Check driver even if null (unassigning)
-                    if ($assignedDriver !== null || isset($input['assigned_driver'])) {
-                        $expectedDriver = ($assignedDriver === '' || $assignedDriver === null) ? null : trim((string)$assignedDriver);
-                        $currentDriver = ($checkOrder['assigned_driver'] === '' || $checkOrder['assigned_driver'] === null) ? null : trim((string)($checkOrder['assigned_driver'] ?? ''));
-                        if ($currentDriver !== $expectedDriver) {
-                            $alreadySame = false;
-                            error_log("   Driver different: current='{$currentDriver}' vs expected='{$expectedDriver}'");
-                        }
-                    }
-                    
-                    if ($alreadySame) {
-                        error_log("⚠️ Values are already set to what we're trying to set - this is expected");
-                        
-                        // Build response with all fields
-                        $response = [
-                            'success' => true,
-                            'message' => 'Order already has these values',
-                            'database_updated' => true,
-                            'verification_passed' => true
-                        ];
-                        
-                        if ($newStatus !== null) {
-                            $response['new_status'] = $checkOrder['status'];
-                        }
-                        if ($assignedDriver !== null || isset($input['assigned_driver'])) {
-                            $response['assigned_driver'] = $checkOrder['assigned_driver'] ?? null;
-                            if ($response['assigned_driver'] === '') {
-                                $response['assigned_driver'] = null;
-                            }
-                            error_log("📤 Returning assigned_driver (already same): " . var_export($response['assigned_driver'], true));
-                        }
-                        
-                        if (!headers_sent()) {
-                            header('Content-Type: application/json; charset=utf-8');
-                        }
-                        echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                        if (isset($displayErrors)) {
-                            ini_set('display_errors', $displayErrors);
-                        }
-                        exit;
-                    } else {
-                        if (!headers_sent()) {
-                            $this->setJsonHeaders();
-                            http_response_code(500);
-                        }
-                        echo json_encode([
-                            'success' => false, 
-                            'error' => 'Database update failed: No rows affected. Current: status=' . $checkOrder['status'] . ', driver=' . ($checkOrder['assigned_driver'] ?? 'NULL')
-                        ]);
-                        if (isset($displayErrors)) {
-                            ini_set('display_errors', $displayErrors);
-                        }
-                        exit;
-                    }
+                    $this->pdo->rollback();
+                    ob_end_clean();
+                    http_response_code(500);
+                    echo json_encode([
+                        'success' => false, 
+                        'error' => 'Database update failed: No rows affected. Current: status=' . $checkOrder['status'] . ', driver=' . ($checkOrder['assigned_driver'] ?? 'NULL') . '. Please try again or contact support.'
+                    ]);
+                    exit;
                 }
             }
             
             error_log("✅ UPDATE CONFIRMED: $rowsAffected row(s) affected in database");
 
+            // Track driver change using validated driver value
+            $oldDriver = $currentOrder['assigned_driver'] ?? null;
+            $driverChanged = false;
+            if ($assignedDriver !== null) {
+                // Use validated driver value if available, otherwise use input (normalized)
+                $expectedDriver = $validatedDriverValue;
+                if ($expectedDriver === null && $assignedDriver) {
+                    // Fallback to input if validation didn't run
+                    $expectedDriver = (trim($assignedDriver) === '' || $assignedDriver === null) ? null : trim($assignedDriver);
+                }
+                
+                $oldDriverNormalized = ($oldDriver === '' || $oldDriver === null) ? null : trim(strtolower($oldDriver));
+                $expectedDriverNormalized = ($expectedDriver === '' || $expectedDriver === null) ? null : trim(strtolower($expectedDriver));
+                
+                // Case-insensitive comparison
+                $driverChanged = ($expectedDriverNormalized !== $oldDriverNormalized && 
+                                 !(($expectedDriverNormalized === null || $expectedDriverNormalized === '') && 
+                                   ($oldDriverNormalized === null || $oldDriverNormalized === '')));
+                
+                if ($driverChanged) {
+                    error_log("🚗 Driver change detected: '" . ($oldDriver ?? 'NULL') . "' → '" . ($expectedDriver ?? 'NULL') . "'");
+                } else {
+                    error_log("ℹ️ Driver unchanged: '" . ($oldDriver ?? 'NULL') . "' (same as '" . ($expectedDriver ?? 'NULL') . "')");
+                }
+            }
+            
             // Record status change in history only if status actually changed
             if ($newStatus !== null && $statusChanged) {
                 try {
@@ -749,13 +691,17 @@ class ApiController extends BaseController {
                         INSERT INTO order_status_history (order_id, old_status, new_status, changed_by_admin_id, admin_name, notes)
                         VALUES (?, ?, ?, ?, ?, ?)
                     ");
+                    $notes = $adminNotes ?? '';
+                    if ($driverChanged && $validatedDriverValue) {
+                        $notes = ($notes ? $notes . ' | ' : '') . "Driver assigned: " . trim($validatedDriverValue);
+                    }
                     $stmt->execute([
                         $orderId,
                         $oldStatus,
                         $newStatus,
                         $_SESSION['user_id'] ?? null,
                         ($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? ''),
-                        $adminNotes
+                        $notes
                     ]);
                 } catch (Exception $e) {
                     // Log error but don't fail the update
@@ -764,6 +710,10 @@ class ApiController extends BaseController {
 
                 // Add delivery update only if status changed
                 try {
+                    $message = "Order status updated from $oldStatus to $newStatus";
+                    if ($driverChanged && $validatedDriverValue) {
+                        $message .= " and assigned to " . trim($validatedDriverValue);
+                    }
                     $stmt = $this->pdo->prepare("
                         INSERT INTO delivery_updates (order_id, status, message) 
                         VALUES (?, ?, ?)
@@ -771,12 +721,31 @@ class ApiController extends BaseController {
                     $stmt->execute([
                         $orderId, 
                         $newStatus, 
-                        "Order status updated from $oldStatus to $newStatus" . 
-                        ($assignedDriver ? " and assigned to $assignedDriver" : "")
+                        $message
                     ]);
                 } catch (Exception $e) {
                     // Log error but don't fail the update
                     error_log("Failed to insert delivery update: " . $e->getMessage());
+                }
+            } elseif ($driverChanged) {
+                // Driver changed without status change - still log it
+                try {
+                    $driverMessage = $validatedDriverValue 
+                        ? "Driver assigned: " . trim($validatedDriverValue) 
+                        : "Driver unassigned";
+                    
+                    $stmt = $this->pdo->prepare("
+                        INSERT INTO delivery_updates (order_id, status, message) 
+                        VALUES (?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $orderId, 
+                        $oldStatus, 
+                        $driverMessage
+                    ]);
+                    error_log("✅ Driver assignment logged in delivery_updates");
+                } catch (Exception $e) {
+                    error_log("Failed to log driver assignment: " . $e->getMessage());
                 }
             }
 
@@ -812,25 +781,34 @@ class ApiController extends BaseController {
                 }
             }
             
-            // Verify driver update if it was included in the request (even if null for unassigning)
-            if ($assignedDriver !== null || isset($input['assigned_driver'])) {
-                $expectedDriver = ($assignedDriver === '' || $assignedDriver === null) ? null : $assignedDriver;
-                $actualDriver = $updatedOrder['assigned_driver'] ?? null;
-                
-                // Normalize both values for comparison (handle empty strings and nulls)
-                $expectedDriverNormalized = ($expectedDriver === '' || $expectedDriver === null) ? null : trim((string)$expectedDriver);
-                $actualDriverNormalized = ($actualDriver === '' || $actualDriver === null) ? null : trim((string)$actualDriver);
-                
-                if ($actualDriverNormalized !== $expectedDriverNormalized) {
-                    $verificationErrors[] = "Driver mismatch: Expected '" . ($expectedDriverNormalized ?? 'NULL') . "' but got '" . ($actualDriverNormalized ?? 'NULL') . "'";
-                    $verificationPassed = false;
-                    error_log("❌ Driver verification FAILED:");
-                    error_log("   - Expected: '" . ($expectedDriverNormalized ?? 'NULL') . "'");
-                    error_log("   - Actual in DB: '" . ($actualDriverNormalized ?? 'NULL') . "'");
-                    error_log("   - Raw expected: " . var_export($expectedDriver, true));
-                    error_log("   - Raw actual: " . var_export($actualDriver, true));
+            if ($assignedDriver !== null) {
+                // Use the validated driver value (not the input) for verification
+                $expectedDriver = $validatedDriverValue;
+                if ($expectedDriver === null || $expectedDriver === '') {
+                    $expectedDriver = null; // Normalize empty to null
                 } else {
-                    error_log("✅ Driver verified in database: " . ($actualDriverNormalized ?? 'NULL'));
+                    $expectedDriver = trim($expectedDriver);
+                }
+                
+                // Get actual driver value from database - handle both NULL and empty string
+                $actualDriverRaw = $updatedOrder['assigned_driver'] ?? null;
+                $actualDriver = ($actualDriverRaw === '' || $actualDriverRaw === null) ? null : trim($actualDriverRaw);
+                
+                error_log("🔍 Driver verification:");
+                error_log("   - Expected (validated): " . ($expectedDriver ?? 'NULL'));
+                error_log("   - Actual (from DB): " . ($actualDriverRaw ?? 'NULL'));
+                error_log("   - Actual (normalized): " . ($actualDriver ?? 'NULL'));
+                
+                // Compare using case-insensitive, trimmed values
+                $expectedNormalized = $expectedDriver ? strtolower(trim($expectedDriver)) : '';
+                $actualNormalized = $actualDriver ? strtolower(trim($actualDriver)) : '';
+                
+                if ($expectedNormalized !== $actualNormalized && 
+                    !(($expectedNormalized === '') && ($actualNormalized === ''))) {
+                    $verificationErrors[] = "Driver mismatch: Expected '" . ($expectedDriver ?? 'NULL') . "' but got '" . ($actualDriver ?? 'NULL') . "'";
+                    $verificationPassed = false;
+                } else {
+                    error_log("✅ Driver verified in database: " . ($actualDriver ?? 'NULL'));
                 }
             }
             
@@ -864,9 +842,16 @@ class ApiController extends BaseController {
                 }
             }
             
+            // Build clear success message
+            if (empty($updateMessages)) {
+                $successMessage = 'Order updated successfully';
+            } else {
+                $successMessage = implode(', ', $updateMessages);
+            }
+            
             $response = [
                 'success' => true, 
-                'message' => 'Order updated successfully: ' . implode(', ', $updateMessages),
+                'message' => $successMessage,
                 'database_updated' => true,
                 'verification_passed' => $verificationPassed,
                 'order_id' => $orderId,
@@ -878,37 +863,17 @@ class ApiController extends BaseController {
                 $response['new_status'] = $updatedOrder['status'];
                 error_log("📤 Returning new_status: " . $response['new_status']);
             }
-            
-            // CRITICAL: Always return assigned_driver if it was in the update request (even if null for unassigning)
-            if ($assignedDriver !== null || isset($input['assigned_driver'])) {
-                // Get the actual value from database (in case normalization changed it)
-                $dbDriverValue = $updatedOrder['assigned_driver'] ?? null;
-                
-                // Normalize empty string to null for consistency
-                if ($dbDriverValue === '') {
-                    $dbDriverValue = null;
+            if ($assignedDriver !== null) {
+                // Return the normalized driver value (null or trimmed string)
+                $returnDriverValue = $updatedOrder['assigned_driver'] ?? null;
+                // Normalize empty strings to null for consistency
+                if ($returnDriverValue === '' || $returnDriverValue === null) {
+                    $returnDriverValue = null;
+                } else {
+                    $returnDriverValue = trim($returnDriverValue);
                 }
-                
-                // Always include assigned_driver in response
-                $response['assigned_driver'] = $dbDriverValue;
-                
-                // CRITICAL: Log what we're returning
-                error_log("📤 RETURNING assigned_driver in response:");
-                error_log("   - Request value (normalized): " . var_export($assignedDriver, true));
-                error_log("   - Database value: " . var_export($updatedOrder['assigned_driver'], true));
-                error_log("   - Response value: " . var_export($response['assigned_driver'], true));
-                error_log("   - Type: " . gettype($response['assigned_driver']));
-                error_log("   - Was in input: " . (isset($input['assigned_driver']) ? 'YES' : 'NO'));
-                
-                // Double-check: If we sent a driver name, make sure it's in the response
-                if ($assignedDriver !== null && $assignedDriver !== '' && $response['assigned_driver'] === null) {
-                    error_log("⚠️ WARNING: Driver was sent but response shows null! This might be a database issue.");
-                    // Try to use the sent value as fallback
-                    $response['assigned_driver'] = trim((string)$assignedDriver);
-                    error_log("   - Using sent value as fallback: " . $response['assigned_driver']);
-                }
-            } else {
-                error_log("📤 assigned_driver was NOT in the update request, skipping response field");
+                $response['assigned_driver'] = $returnDriverValue;
+                error_log("📤 Returning assigned_driver: " . ($returnDriverValue ?? 'null'));
             }
             
             // Log final response before sending
@@ -916,31 +881,16 @@ class ApiController extends BaseController {
             error_log("========================================");
             
             // Clear any accidental output and set headers before sending JSON
-            // Clean all output buffers
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            
-            // Set headers (check if already sent)
-            if (!headers_sent()) {
-                header('Content-Type: application/json; charset=utf-8');
-            }
+            ob_end_clean();
+            header('Content-Type: application/json; charset=utf-8');
             
             // Send JSON response
             echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            
-            // Restore error display setting
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
-            
             exit;
 
         } catch (Exception $e) {
-            // Clear all output buffers
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
+            // Clear any output buffer
+            ob_end_clean();
             
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollback();
@@ -951,19 +901,8 @@ class ApiController extends BaseController {
             error_log("❌ Update order API error: " . $errorMsg);
             error_log("❌ Stack trace: " . $e->getTraceAsString());
             
-            // Set headers if not already sent
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            
+            http_response_code(500);
             echo json_encode(['success' => false, 'error' => $errorMsg]);
-            
-            // Restore error display setting
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
-            
             exit;
         }
     }
@@ -972,589 +911,279 @@ class ApiController extends BaseController {
      * Get drivers list
      * GET /api/admin/drivers
      */
-    public function drivers($driverId = null) {
-        // Store original error settings
-        $displayErrors = ini_get('display_errors');
-        $errorReporting = error_reporting();
-        ini_set('display_errors', '0');
-        error_reporting(E_ALL); // Still log errors, just don't display them
+    public function drivers() {
+        $this->requireAdminJson();
+        $this->setJsonHeaders();
         
-        // Set custom error handler to catch any errors
-        $errorHandler = set_error_handler(function($errno, $errstr, $errfile, $errline) {
-            error_log("PHP Error in drivers API: [$errno] $errstr in $errfile on line $errline");
-            return true; // Suppress error output
-        });
-        
-        // Start output buffering as early as possible to catch any accidental output
-        // Clear any existing output buffer first
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-        ob_start();
-        
-        // Wrap everything in try-catch to catch any unexpected errors
         try {
-            // Verify PDO connection exists
-            if (!$this->pdo) {
-                throw new Exception('Database connection not available');
-            }
+            $method = $_SERVER['REQUEST_METHOD'];
             
-            // Verify adminMiddleware exists
-            if (!$this->adminMiddleware) {
-                throw new Exception('Admin middleware not initialized');
-            }
-            
-            // Check admin access FIRST, before any other operations
-            // Do this manually to avoid potential issues with requireAdminJson
-            try {
-                $isAdmin = $this->adminMiddleware->isAdmin();
-            } catch (Exception $e) {
-                error_log("Error checking admin status: " . $e->getMessage());
-                error_log("Admin middleware error trace: " . $e->getTraceAsString());
-                // If admin check fails, assume not admin
-                $isAdmin = false;
-            } catch (Throwable $t) {
-                error_log("Fatal error checking admin status: " . $t->getMessage());
-                error_log("Admin middleware fatal error trace: " . $t->getTraceAsString());
-                $isAdmin = false;
-            }
-            
-            if (!$isAdmin) {
-                // Clear output buffers
-                while (ob_get_level()) {
-                    ob_end_clean();
-                }
-                
-                // Restore error handler
-                if ($errorHandler !== null) {
-                    restore_error_handler();
-                }
-                error_reporting($errorReporting);
-                ini_set('display_errors', $displayErrors);
-                
-                // Set JSON headers and send error response
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(403);
-                }
-                
-                echo json_encode(['success' => false, 'error' => 'Access denied. Admin privileges required.']);
-                exit;
-            }
-            
-            // Set JSON headers after admin check passes
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-            }
-            
-            // Handle DELETE request
-            if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && $driverId) {
-                try {
-                    // Get driver name first
-                    $stmt = $this->pdo->prepare("SELECT name FROM drivers WHERE id = ? AND is_active = 1");
-                    $stmt->execute([$driverId]);
-                    $driver = $stmt->fetch();
-                    
-                    if (!$driver) {
-                        while (ob_get_level()) {
-                            ob_end_clean();
-                        }
-                        if (!headers_sent()) {
-                            $this->setJsonHeaders();
-                            http_response_code(404);
-                        }
-                        echo json_encode(['success' => false, 'error' => 'Driver not found']);
-                        if (isset($displayErrors)) {
-                            ini_set('display_errors', $displayErrors);
-                        }
-                        exit;
-                    }
-                    
-                    $driverName = $driver['name'];
-                    
-                    // First, unassign driver from all orders
-                    $stmt = $this->pdo->prepare("UPDATE orders SET assigned_driver = NULL WHERE assigned_driver = ?");
-                    $stmt->execute([$driverName]);
-                    
-                    // Mark driver as inactive (soft delete)
-                    $stmt = $this->pdo->prepare("UPDATE drivers SET is_active = 0 WHERE id = ?");
-                    $stmt->execute([$driverId]);
-                    
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                    }
-                    echo json_encode(['success' => true, 'message' => 'Driver deleted successfully']);
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    exit;
-                } catch (PDOException $e) {
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                        http_response_code(500);
-                    }
-                    echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    exit;
-                } catch (Exception $e) {
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                        http_response_code(500);
-                    }
-                    echo json_encode(['success' => false, 'error' => 'Error: ' . $e->getMessage()]);
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    exit;
-                }
-            }
-            
-            // Handle POST request (create new driver)
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                try {
-                    $input = json_decode(file_get_contents('php://input'), true);
-                    
-                    if (!$input) {
-                        while (ob_get_level()) {
-                            ob_end_clean();
-                        }
-                        if (!headers_sent()) {
-                            $this->setJsonHeaders();
-                            http_response_code(400);
-                        }
-                        echo json_encode(['success' => false, 'error' => 'Invalid JSON data']);
-                        if (isset($displayErrors)) {
-                            ini_set('display_errors', $displayErrors);
-                        }
-                        exit;
-                    }
-                    
-                    $name = trim($input['name'] ?? '');
-                    $phone = trim($input['phone'] ?? '');
-                    $email = !empty($input['email']) ? trim($input['email']) : null;
-                    $vehicleType = $input['vehicle_type'] ?? 'bike';
-                    $licenseNumber = !empty($input['license_number']) ? trim($input['license_number']) : null;
-                    
-                    // Validate required fields
-                    if (empty($name) || empty($phone)) {
-                        while (ob_get_level()) {
-                            ob_end_clean();
-                        }
-                        if (!headers_sent()) {
-                            $this->setJsonHeaders();
-                            http_response_code(400);
-                        }
-                        echo json_encode(['success' => false, 'error' => 'Driver name and phone are required']);
-                        if (isset($displayErrors)) {
-                            ini_set('display_errors', $displayErrors);
-                        }
-                        exit;
-                    }
-                    
-                    // Check if driver with same name or phone already exists
-                    $stmt = $this->pdo->prepare("SELECT id FROM drivers WHERE (name = ? OR phone = ?) AND is_active = 1");
-                    $stmt->execute([$name, $phone]);
-                    if ($stmt->fetch()) {
-                        while (ob_get_level()) {
-                            ob_end_clean();
-                        }
-                        if (!headers_sent()) {
-                            $this->setJsonHeaders();
-                            http_response_code(400);
-                        }
-                        echo json_encode(['success' => false, 'error' => 'Driver with this name or phone already exists']);
-                        if (isset($displayErrors)) {
-                            ini_set('display_errors', $displayErrors);
-                        }
-                        exit;
-                    }
-                    
-                    // Insert new driver
-                    $stmt = $this->pdo->prepare("
-                        INSERT INTO drivers (name, phone, email, vehicle_type, license_number, is_active) 
-                        VALUES (?, ?, ?, ?, ?, 1)
-                    ");
-                    $stmt->execute([$name, $phone, $email, $vehicleType, $licenseNumber]);
-                    
-                    $newDriverId = $this->pdo->lastInsertId();
-                    
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                    }
-                    
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Driver added successfully',
-                        'driver' => [
-                            'id' => $newDriverId,
-                            'name' => $name,
-                            'phone' => $phone,
-                            'email' => $email,
-                            'vehicle_type' => $vehicleType,
-                            'license_number' => $licenseNumber
-                        ]
-                    ]);
-                    
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    
-                    exit;
-                } catch (PDOException $e) {
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                        http_response_code(500);
-                    }
-                    echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    exit;
-                } catch (Exception $e) {
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                        http_response_code(500);
-                    }
-                    echo json_encode(['success' => false, 'error' => 'Error: ' . $e->getMessage()]);
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    exit;
-                }
-            }
-            
-            // Handle GET request (list drivers)
-            error_log("🔄 Starting GET drivers request");
-            
-            // Verify PDO is available
-            if (!$this->pdo) {
-                throw new Exception('PDO connection not available');
-            }
-            
-            // First check if the drivers table exists
-            $tableExists = false;
-            try {
-                error_log("🔍 Checking if drivers table exists...");
-                $checkTable = $this->pdo->prepare("SHOW TABLES LIKE 'drivers'");
-                $checkTable->execute();
-                $tableExists = (bool)$checkTable->fetch();
-                error_log("📊 Drivers table exists: " . ($tableExists ? 'YES' : 'NO'));
-            } catch (PDOException $e) {
-                // If table check itself fails, assume table doesn't exist
-                error_log("❌ Error checking for drivers table: " . $e->getMessage());
-                error_log("❌ PDO Error Code: " . $e->getCode());
-                $tableExists = false;
-            } catch (Throwable $t) {
-                error_log("❌ Fatal error checking drivers table: " . $t->getMessage());
-                $tableExists = false;
-            }
-            
-            if (!$tableExists) {
-                // Table doesn't exist - try to create it automatically
-                error_log("⚠️ Drivers table does not exist in database. Attempting to create it...");
-                
-                try {
-                    $createTableSQL = "
-                        CREATE TABLE IF NOT EXISTS drivers (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            name VARCHAR(100) NOT NULL,
-                            phone VARCHAR(20) NOT NULL,
-                            email VARCHAR(100),
-                            vehicle_type ENUM('bike', 'car', 'van') DEFAULT 'bike',
-                            license_number VARCHAR(50),
-                            is_active BOOLEAN DEFAULT TRUE,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-                    ";
-                    $this->pdo->exec($createTableSQL);
-                    error_log("✅ Drivers table created successfully");
-                    $tableExists = true;
-                } catch (PDOException $createError) {
-                    error_log("❌ Failed to create drivers table: " . $createError->getMessage());
-                    // Table creation failed, return empty list with message
-                    while (ob_get_level()) {
-                        ob_end_clean();
-                    }
-                    
-                    if (!headers_sent()) {
-                        $this->setJsonHeaders();
-                    }
-                    
-                    echo json_encode([
-                        'success' => true, 
-                        'drivers' => [],
-                        'message' => 'Drivers table does not exist. Please run the database migration to create it.',
-                        'table_missing' => true
-                    ]);
-                    
-                    if (isset($displayErrors)) {
-                        ini_set('display_errors', $displayErrors);
-                    }
-                    
-                    exit;
-                }
-            }
-            
-            // Fetch drivers - initialize as empty array first
-            $drivers = [];
-            error_log("📋 Fetching drivers from database...");
-            
-            try {
-                $stmt = $this->pdo->prepare("SELECT * FROM drivers WHERE is_active = 1 ORDER BY name ASC");
+            // GET: Fetch all drivers
+            if ($method === 'GET') {
+                $stmt = $this->pdo->prepare("
+                    SELECT d.*, 
+                           d.name,
+                           COALESCE(d.status, 
+                               CASE WHEN d.is_active = 1 THEN 'active' ELSE 'inactive' END
+                           ) as status
+                    FROM drivers d 
+                    WHERE d.is_active = 1
+                    ORDER BY d.name ASC
+                ");
                 $stmt->execute();
-                $fetchedDrivers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $drivers = $stmt->fetchAll();
+
+                echo json_encode(['success' => true, 'drivers' => $drivers]);
+            }
+            // POST: Create new driver(s)
+            elseif ($method === 'POST') {
+                $input = json_decode(file_get_contents('php://input'), true);
                 
-                // Ensure drivers is an array
-                if (is_array($fetchedDrivers)) {
-                    $drivers = $fetchedDrivers;
-                    error_log("✅ Fetched " . count($drivers) . " driver(s) from database");
-                    
-                    // Log sample driver data for debugging
-                    if (count($drivers) > 0) {
-                        error_log("📋 Sample driver data: " . json_encode($drivers[0]));
-                    }
+                // Check if bulk import
+                if (isset($input['drivers']) && is_array($input['drivers'])) {
+                    $this->bulkImportDrivers($input['drivers']);
                 } else {
-                    error_log("⚠️ Drivers query did not return an array, using empty array");
-                    $drivers = [];
-                }
-                
-            } catch (PDOException $queryError) {
-                error_log("❌ PDO Error while fetching drivers: " . $queryError->getMessage());
-                error_log("❌ Error Code: " . $queryError->getCode());
-                error_log("❌ SQL State: " . ($queryError->errorInfo[0] ?? 'N/A'));
-                
-                // If it's a "table doesn't exist" error, try to create it
-                if ($queryError->getCode() == 1146 || strpos($queryError->getMessage(), "doesn't exist") !== false || 
-                    strpos($queryError->getMessage(), "Unknown table") !== false) {
-                    error_log("⚠️ Drivers table appears to be missing, attempting to create it...");
-                    try {
-                        $createTableSQL = "
-                            CREATE TABLE IF NOT EXISTS drivers (
-                                id INT AUTO_INCREMENT PRIMARY KEY,
-                                name VARCHAR(100) NOT NULL,
-                                phone VARCHAR(20) NOT NULL,
-                                email VARCHAR(100),
-                                vehicle_type ENUM('bike', 'car', 'van') DEFAULT 'bike',
-                                license_number VARCHAR(50),
-                                is_active BOOLEAN DEFAULT TRUE,
-                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-                        ";
-                        $this->pdo->exec($createTableSQL);
-                        error_log("✅ Drivers table created successfully");
-                        
-                        // Retry the query
-                        try {
-                            $stmt = $this->pdo->prepare("SELECT * FROM drivers WHERE is_active = 1 ORDER BY name ASC");
-                            $stmt->execute();
-                            $fetchedDrivers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                            if (is_array($fetchedDrivers)) {
-                                $drivers = $fetchedDrivers;
-                                error_log("✅ Successfully fetched " . count($drivers) . " driver(s) after table creation");
-                            }
-                        } catch (PDOException $retryError) {
-                            error_log("❌ Error on retry query: " . $retryError->getMessage());
-                            // Use empty array, don't throw
-                            $drivers = [];
-                        }
-                    } catch (PDOException $createError) {
-                        error_log("❌ Failed to create drivers table: " . $createError->getMessage());
-                        // Use empty array instead of throwing, so we can return a success response with empty list
-                        $drivers = [];
-                        error_log("⚠️ Returning empty drivers list due to table creation failure");
-                    }
-                } else {
-                    // For other PDO errors, log but return empty array
-                    error_log("⚠️ Database query error, returning empty drivers list");
-                    $drivers = [];
+                    $this->createDriver($input);
                 }
             }
-            
-            // Ensure drivers is always an array at this point
-            if (!is_array($drivers)) {
-                error_log("⚠️ Drivers is not an array, converting to empty array");
-                $drivers = [];
+            // PUT: Update driver
+            elseif ($method === 'PUT') {
+                $input = json_decode(file_get_contents('php://input'), true);
+                $this->updateDriver($input);
+            }
+            // DELETE: Delete driver
+            elseif ($method === 'DELETE') {
+                $input = json_decode(file_get_contents('php://input'), true);
+                $driverId = $input['id'] ?? null;
+                
+                if (!$driverId) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Driver ID is required']);
+                    return;
+                }
+                
+                $stmt = $this->pdo->prepare("DELETE FROM drivers WHERE id = ?");
+                $stmt->execute([$driverId]);
+                
+                echo json_encode(['success' => true, 'message' => 'Driver deleted successfully']);
+            }
+            else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
             }
 
-            // Clear output buffers before sending JSON
-            // Get all buffer contents first to ensure nothing leaks
-            $bufferContents = '';
-            while (ob_get_level()) {
-                $bufferContents .= ob_get_contents();
-                ob_end_clean();
-            }
-            
-            // Log if there was any unexpected output
-            if (!empty(trim($bufferContents))) {
-                error_log("⚠️ Unexpected output caught in drivers API buffer: " . substr($bufferContents, 0, 500));
-            }
-            
-            // Ensure headers are sent
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-            }
-            
-            // Send JSON response
-            $response = json_encode(['success' => true, 'drivers' => $drivers ?: []]);
-            
-            if ($response === false) {
-                error_log("JSON encode error: " . json_last_error_msg());
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(500);
-                }
-                echo json_encode(['success' => false, 'error' => 'Failed to encode response']);
-            } else {
-                echo $response;
-            }
-            
-            // Restore error display setting
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
-            
-            exit;
-
-        } catch (PDOException $e) {
-            // Handle PDO exceptions specifically
-            error_log("❌ Drivers API PDO Exception: " . $e->getMessage());
-            error_log("❌ Error Code: " . $e->getCode());
-            error_log("❌ Stack trace: " . $e->getTraceAsString());
-            
-            // Restore error handler
-            if ($errorHandler !== null) {
-                restore_error_handler();
-            }
-            error_reporting($errorReporting);
-            
-            // Clear all output buffers
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            
-            $errorMsg = 'Database error: ' . $e->getMessage();
-            if (strpos($e->getMessage(), "doesn't exist") !== false || $e->getCode() == 1146) {
-                $errorMsg = 'Drivers table does not exist. Please run the database migration.';
-            }
-            
-            echo json_encode([
-                'success' => false, 
-                'error' => $errorMsg,
-                'error_type' => 'PDOException',
-                'error_code' => $e->getCode()
-            ]);
-            
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
-            
-            exit;
         } catch (Exception $e) {
-            // Restore error handler first
-            if ($errorHandler !== null) {
-                restore_error_handler();
-            }
-            error_reporting($errorReporting);
-            
-            // Clear all output buffers
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            
-            error_log("❌ Drivers API Exception: " . $e->getMessage());
-            error_log("❌ Exception Type: " . get_class($e));
-            error_log("❌ File: " . $e->getFile() . " Line: " . $e->getLine());
-            error_log("❌ Stack trace: " . $e->getTraceAsString());
-            
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            
-            echo json_encode([
-                'success' => false, 
-                'error' => 'Failed to process driver request: ' . $e->getMessage(),
-                'error_type' => get_class($e)
-            ]);
-            
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
-            
-            exit;
-        } catch (Throwable $t) {
-            // Catch any fatal errors
-            error_log("❌ Drivers API Fatal Error: " . $t->getMessage());
-            error_log("❌ Error Type: " . get_class($t));
-            error_log("❌ File: " . $t->getFile() . " Line: " . $t->getLine());
-            error_log("❌ Stack trace: " . $t->getTraceAsString());
-            
-            // Restore error handler
-            if ($errorHandler !== null) {
-                restore_error_handler();
-            }
-            error_reporting($errorReporting);
-            
-            // Clear all output buffers
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            
-            echo json_encode([
-                'success' => false, 
-                'error' => 'System error: ' . $t->getMessage(),
-                'error_type' => get_class($t)
-            ]);
-            
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
-            
-            exit;
-        } finally {
-            // Always restore error handler and settings
-            if (function_exists('restore_error_handler')) {
-                @restore_error_handler();
-            }
-            if (isset($errorReporting)) {
-                error_reporting($errorReporting);
-            }
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
+            error_log("Drivers API error: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Failed to process request: ' . $e->getMessage()]);
+        }
+    }
+    
+    private function createDriver($data) {
+        // Handle both old format (name) and new format (first_name, last_name)
+        $name = $data['name'] ?? '';
+        $firstName = $data['first_name'] ?? '';
+        $lastName = $data['last_name'] ?? '';
+        
+        // If using old format, split name
+        if (!empty($name) && empty($firstName)) {
+            $nameParts = explode(' ', $name, 2);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = $nameParts[1] ?? '';
+        }
+        
+        // Generate driver_id if not provided
+        $driverId = $data['driver_id'] ?? 'DRV' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        
+        // Check for duplicate driver_id
+        while (true) {
+            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM drivers WHERE driver_id = ?");
+            $stmt->execute([$driverId]);
+            if ($stmt->fetchColumn() == 0) break;
+            $driverId = 'DRV' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        }
+        
+        $phone = $data['phone'] ?? '';
+        $email = $data['email'] ?? null;
+        $vehicleType = $data['vehicle_type'] ?? 'motorcycle';
+        $licenseNumber = $data['license_number'] ?? null;
+        $vehicleNumber = $data['vehicle_number'] ?? null;
+        $vehicleModel = $data['vehicle_model'] ?? null;
+        $address = $data['address'] ?? null;
+        $city = $data['city'] ?? null;
+        $state = $data['state'] ?? null;
+        $zipCode = $data['zip_code'] ?? null;
+        $joiningDate = $data['joining_date'] ?? date('Y-m-d');
+        
+        // Map old format to new format
+        $status = $data['status'] ?? 'active';
+        $availabilityStatus = $data['availability_status'] ?? 'available';
+        $isActive = $data['is_active'] ?? 1;
+        
+        // If using old is_active format, convert to status
+        if ($isActive == 0) {
+            $status = 'inactive';
+        }
+        
+        $stmt = $this->pdo->prepare("
+            INSERT INTO drivers (
+                driver_id, first_name, last_name, phone, email, 
+                vehicle_type, license_number, vehicle_number, vehicle_model,
+                address, city, state, zip_code, joining_date,
+                status, availability_status, is_active,
+                created_at
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW()
+            )
+        ");
+        
+        $stmt->execute([
+            $driverId, $firstName, $lastName, $phone, $email,
+            $vehicleType, $licenseNumber, $vehicleNumber, $vehicleModel,
+            $address, $city, $state, $zipCode, $joiningDate,
+            $status, $availabilityStatus, $isActive
+        ]);
+        
+        $newDriverId = $this->pdo->lastInsertId();
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Driver created successfully',
+            'driver_id' => $newDriverId
+        ]);
+    }
+    
+    private function bulkImportDrivers($drivers) {
+        $imported = 0;
+        $errors = [];
+        
+        foreach ($drivers as $index => $data) {
+            try {
+                // Handle both old format (name) and new format (first_name, last_name)
+                $name = $data['name'] ?? '';
+                $firstName = $data['first_name'] ?? '';
+                $lastName = $data['last_name'] ?? '';
+                
+                // If using old format, split name
+                if (!empty($name) && empty($firstName)) {
+                    $nameParts = explode(' ', $name, 2);
+                    $firstName = $nameParts[0] ?? '';
+                    $lastName = $nameParts[1] ?? '';
+                }
+                
+                // Generate driver_id if not provided
+                $driverId = $data['driver_id'] ?? 'DRV' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                
+                // Check for duplicate driver_id
+                while (true) {
+                    $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM drivers WHERE driver_id = ?");
+                    $stmt->execute([$driverId]);
+                    if ($stmt->fetchColumn() == 0) break;
+                    $driverId = 'DRV' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                }
+                
+                $phone = $data['phone'] ?? '';
+                $email = $data['email'] ?? null;
+                $vehicleType = $data['vehicle_type'] ?? 'motorcycle';
+                $licenseNumber = $data['license_number'] ?? null;
+                $vehicleNumber = $data['vehicle_number'] ?? null;
+                $vehicleModel = $data['vehicle_model'] ?? null;
+                $address = $data['address'] ?? null;
+                $city = $data['city'] ?? null;
+                $state = $data['state'] ?? null;
+                $zipCode = $data['zip_code'] ?? null;
+                $joiningDate = $data['joining_date'] ?? date('Y-m-d');
+                
+                // Map old format to new format
+                $status = $data['status'] ?? 'active';
+                $availabilityStatus = $data['availability_status'] ?? 'available';
+                $isActive = $data['is_active'] ?? 1;
+                
+                // If using old is_active format, convert to status
+                if ($isActive == 0) {
+                    $status = 'inactive';
+                }
+                
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO drivers (
+                        driver_id, first_name, last_name, phone, email, 
+                        vehicle_type, license_number, vehicle_number, vehicle_model,
+                        address, city, state, zip_code, joining_date,
+                        status, availability_status, is_active,
+                        created_at
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW()
+                    )
+                ");
+                
+                $stmt->execute([
+                    $driverId, $firstName, $lastName, $phone, $email,
+                    $vehicleType, $licenseNumber, $vehicleNumber, $vehicleModel,
+                    $address, $city, $state, $zipCode, $joiningDate,
+                    $status, $availabilityStatus, $isActive
+                ]);
+                
+                $imported++;
+            } catch (Exception $e) {
+                $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
+                error_log("Bulk import error for row " . ($index + 1) . ": " . $e->getMessage());
             }
         }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => "Imported $imported drivers successfully",
+            'imported' => $imported,
+            'errors' => $errors
+        ]);
+    }
+    
+    private function updateDriver($data) {
+        $driverId = $data['id'] ?? null;
+        
+        if (!$driverId) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Driver ID is required']);
+            return;
+        }
+        
+        // Build update query dynamically
+        $fields = [];
+        $params = [];
+        
+        $allowedFields = [
+            'first_name', 'last_name', 'phone', 'email', 'vehicle_type',
+            'license_number', 'vehicle_number', 'vehicle_model', 'address',
+            'city', 'state', 'zip_code', 'joining_date', 'status',
+            'availability_status', 'notes'
+        ];
+        
+        foreach ($allowedFields as $field) {
+            if (isset($data[$field])) {
+                $fields[] = "$field = ?";
+                $params[] = $data[$field];
+            }
+        }
+        
+        if (empty($fields)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'No fields to update']);
+            return;
+        }
+        
+        // Handle is_active mapping
+        if (isset($data['is_active'])) {
+            $fields[] = "is_active = ?";
+            $params[] = $data['is_active'];
+        }
+        
+        $params[] = $driverId;
+        
+        $sql = "UPDATE drivers SET " . implode(', ', $fields) . " WHERE id = ?";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        
+        echo json_encode(['success' => true, 'message' => 'Driver updated successfully']);
     }
 
     /**
@@ -2292,322 +1921,108 @@ class ApiController extends BaseController {
      * GET /api/admin/products
      */
     public function getProducts() {
-        // Suppress error display for API
-        $displayErrors = ini_get('display_errors');
-        ini_set('display_errors', '0');
+        $this->requireAdminJson();
+        $this->setJsonHeaders();
         
-        // Start output buffering
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-        ob_start();
+        $page = intval($_GET['page'] ?? 1);
+        $limit = intval($_GET['limit'] ?? 20);
+        $offset = ($page - 1) * $limit;
+        $search = $_GET['search'] ?? '';
+        $category = $_GET['category'] ?? '';
+        $status = $_GET['status'] ?? 'all'; // all, active, inactive
+        $stock = $_GET['stock'] ?? 'all'; // all, in_stock, low_stock, out_of_stock
         
-        try {
-            // Check admin access first with detailed error logging
-            if (!$this->adminMiddleware || !$this->adminMiddleware->isAdmin()) {
-                error_log("❌ getProducts: Admin access denied. User ID: " . ($_SESSION['user_id'] ?? 'not set') . ", Role: " . ($_SESSION['role'] ?? 'not set'));
-                while (ob_get_level()) {
-                    ob_end_clean();
-                }
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(403);
-                }
-                echo json_encode(['success' => false, 'error' => 'Access denied. Admin privileges required.']);
-                exit;
-            }
-            
-            $this->setJsonHeaders();
-            
-            $page = intval($_GET['page'] ?? 1);
-            $limit = intval($_GET['limit'] ?? 20);
-            $offset = ($page - 1) * $limit;
-            $search = $_GET['search'] ?? '';
-            $category = $_GET['category'] ?? '';
-            $status = $_GET['status'] ?? 'all'; // all, active, inactive
-            $stock = $_GET['stock'] ?? 'all'; // all, in_stock, low_stock, out_of_stock
-            
-            $where = "WHERE 1=1";
-            $params = [];
-            
-            // Search filter - check if brand column exists first
-            try {
-                $stmt = $this->pdo->query("SHOW COLUMNS FROM products LIKE 'brand'");
-                $brandColumnExists = $stmt->rowCount() > 0;
-            } catch (Exception $e) {
-                $brandColumnExists = false;
-            }
-            
-            if (!empty($search)) {
-                if ($brandColumnExists) {
-                    $where .= " AND (p.name LIKE ? OR p.brand LIKE ? OR p.description LIKE ?)";
-                    $searchTerm = "%$search%";
-                    $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm]);
-                } else {
-                    $where .= " AND (p.name LIKE ? OR p.description LIKE ?)";
-                    $searchTerm = "%$search%";
-                    $params = array_merge($params, [$searchTerm, $searchTerm]);
-                }
-            }
-            
-            // Category filter
-            if (!empty($category)) {
-                $where .= " AND p.category_id = ?";
-                $params[] = $category;
-            }
-            
-            // Status filter - check if is_active column exists
-            try {
-                $stmt = $this->pdo->query("SHOW COLUMNS FROM products LIKE 'is_active'");
-                $isActiveExists = $stmt->rowCount() > 0;
-            } catch (Exception $e) {
-                $isActiveExists = false;
-            }
-            
-            if ($status === 'active' && $isActiveExists) {
-                $where .= " AND p.is_active = 1";
-            } elseif ($status === 'inactive' && $isActiveExists) {
-                $where .= " AND p.is_active = 0";
-            }
-            // If is_active column doesn't exist, status filter is ignored
-            
-            // Stock filter - check if stock_quantity and low_stock_threshold columns exist
-            try {
-                $stmt = $this->pdo->query("SHOW COLUMNS FROM products LIKE 'stock_quantity'");
-                $stockQuantityExists = $stmt->rowCount() > 0;
-            } catch (Exception $e) {
-                $stockQuantityExists = false;
-            }
-            
-            try {
-                $stmt = $this->pdo->query("SHOW COLUMNS FROM products LIKE 'low_stock_threshold'");
-                $lowStockThresholdExists = $stmt->rowCount() > 0;
-            } catch (Exception $e) {
-                $lowStockThresholdExists = false;
-            }
-            
-            if ($stockQuantityExists) {
-                if ($stock === 'in_stock') {
-                    if ($lowStockThresholdExists) {
-                        $where .= " AND p.stock_quantity > COALESCE(p.low_stock_threshold, 10)";
-                    } else {
-                        $where .= " AND p.stock_quantity > 10";
-                    }
-                } elseif ($stock === 'low_stock') {
-                    if ($lowStockThresholdExists) {
-                        $where .= " AND p.stock_quantity > 0 AND p.stock_quantity <= COALESCE(p.low_stock_threshold, 10)";
-                    } else {
-                        $where .= " AND p.stock_quantity > 0 AND p.stock_quantity <= 10";
-                    }
-                } elseif ($stock === 'out_of_stock') {
-                    $where .= " AND (p.stock_quantity = 0 OR p.stock_quantity IS NULL)";
-                }
-            }
-            // If stock_quantity column doesn't exist, stock filter is ignored
-            
-            // Initialize defaults
-            $products = [];
-            $total = 0;
-            $categories = [];
-            $overallTotal = 0;
-            $overallActive = 0;
-            $overallLowStock = 0;
-            $overallOutOfStock = 0;
-            
-            // Get products - handle potential missing columns gracefully
-            try {
-                $sql = "SELECT p.*, c.name as category_name 
-                        FROM products p 
-                        LEFT JOIN categories c ON p.category_id = c.id 
-                        $where 
-                        ORDER BY p.created_at DESC 
-                        LIMIT $limit OFFSET $offset";
-                
-                $stmt = $this->pdo->prepare($sql);
-                $stmt->execute($params);
-                $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Ensure all products have required fields
-                foreach ($products as &$product) {
-                    $product['brand'] = $product['brand'] ?? null;
-                    $product['description'] = $product['description'] ?? null;
-                    $product['image'] = $product['image'] ?? null;
-                    $product['diet_tags'] = $product['diet_tags'] ?? '[]';
-                    $product['allergens'] = $product['allergens'] ?? '[]';
-                    $product['images'] = $product['images'] ?? '[]';
-                    $product['is_eco_friendly'] = isset($product['is_eco_friendly']) ? (bool)$product['is_eco_friendly'] : false;
-                    $product['is_frozen'] = isset($product['is_frozen']) ? (bool)$product['is_frozen'] : false;
-                    $product['is_active'] = isset($product['is_active']) ? (bool)$product['is_active'] : true;
-                    $product['halal_certified'] = isset($product['halal_certified']) ? (bool)$product['halal_certified'] : false;
-                    $product['stock_quantity'] = isset($product['stock_quantity']) ? intval($product['stock_quantity']) : 0;
-                    $product['low_stock_threshold'] = isset($product['low_stock_threshold']) ? intval($product['low_stock_threshold']) : 10;
-                    $product['price_current'] = $product['price_current'] ?? $product['price'] ?? 0;
-                }
-                unset($product); // Break reference
-            } catch (PDOException $e) {
-                error_log("❌ getProducts Query Error: " . $e->getMessage());
-                error_log("❌ SQL: " . ($sql ?? 'N/A'));
-                error_log("❌ Params: " . print_r($params, true));
-                error_log("❌ Error Code: " . $e->getCode());
-                
-                // If query fails, check if table exists
-                try {
-                    $stmt = $this->pdo->query("SHOW TABLES LIKE 'products'");
-                    if ($stmt->rowCount() === 0) {
-                        throw new Exception("Products table does not exist in database");
-                    }
-                } catch (Exception $tableCheck) {
-                    throw new Exception("Database error: Products table not found. Please run database migrations.");
-                }
-                
-                // Check if it's a column error
-                if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'doesn\'t exist') !== false) {
-                    throw new Exception("Database structure mismatch: Some columns are missing. Error: " . $e->getMessage());
-                }
-                
-                throw $e; // Re-throw original error
-            }
-            
-            // Get total count
-            try {
-                $countSql = "SELECT COUNT(*) as total FROM products p $where";
-                $stmt = $this->pdo->prepare($countSql);
-                $stmt->execute($params);
-                $total = intval($stmt->fetch()['total']);
-            } catch (PDOException $e) {
-                error_log("❌ getProducts Count Query Error: " . $e->getMessage());
-                // If count fails, set to 0 and continue
-                $total = 0;
-            }
-            
-            // Get categories for filter
-            try {
-                $stmt = $this->pdo->prepare("SELECT id, name FROM categories ORDER BY name");
-                $stmt->execute();
-                $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            } catch (PDOException $e) {
-                error_log("❌ getProducts Categories Query Error: " . $e->getMessage());
-                // If categories query fails, use empty array
-                $categories = [];
-            }
-            
-            // Get overall statistics (not affected by filters)
-            try {
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as total FROM products");
-                $stmt->execute();
-                $overallTotal = intval($stmt->fetch()['total']);
-            } catch (PDOException $e) {
-                error_log("❌ getProducts Overall Total Query Error: " . $e->getMessage());
-                $overallTotal = 0;
-            }
-            
-            try {
-                // Check if is_active column exists
-                $stmt = $this->pdo->query("SHOW COLUMNS FROM products LIKE 'is_active'");
-                $isActiveExists = $stmt->rowCount() > 0;
-                
-                if ($isActiveExists) {
-                    $stmt = $this->pdo->prepare("SELECT COUNT(*) as active FROM products WHERE is_active = 1");
-                } else {
-                    $stmt = $this->pdo->prepare("SELECT COUNT(*) as active FROM products");
-                }
-                $stmt->execute();
-                $overallActive = intval($stmt->fetch()['active']);
-            } catch (PDOException $e) {
-                error_log("❌ getProducts Overall Active Query Error: " . $e->getMessage());
-                $overallActive = 0;
-            }
-            
-            // Get low stock count - handle case where low_stock_threshold column might not exist
-            try {
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as low_stock FROM products WHERE stock_quantity > 0 AND stock_quantity <= COALESCE(low_stock_threshold, 10)");
-                $stmt->execute();
-                $overallLowStock = intval($stmt->fetch()['low_stock']);
-            } catch (PDOException $e) {
-                // Fallback if low_stock_threshold doesn't exist
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as low_stock FROM products WHERE stock_quantity > 0 AND stock_quantity <= 10");
-                $stmt->execute();
-                $overallLowStock = intval($stmt->fetch()['low_stock']);
-            }
-            
-            try {
-                // Check if stock_quantity column exists
-                $stmt = $this->pdo->query("SHOW COLUMNS FROM products LIKE 'stock_quantity'");
-                $stockQuantityExists = $stmt->rowCount() > 0;
-                
-                if ($stockQuantityExists) {
-                    $stmt = $this->pdo->prepare("SELECT COUNT(*) as out_of_stock FROM products WHERE stock_quantity = 0 OR stock_quantity IS NULL");
-                } else {
-                    $stmt = $this->pdo->prepare("SELECT COUNT(*) as out_of_stock FROM products");
-                    // If column doesn't exist, set to 0
-                }
-                $stmt->execute();
-                $overallOutOfStock = intval($stmt->fetch()['out_of_stock']);
-            } catch (PDOException $e) {
-                error_log("❌ getProducts Out of Stock Query Error: " . $e->getMessage());
-                $overallOutOfStock = 0;
-            }
-            
-            // Clear output buffer
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-            }
-            
-            echo json_encode([
-                'success' => true,
-                'data' => $products ?: [],
-                'pagination' => [
-                    'current_page' => $page,
-                    'per_page' => $limit,
-                    'total' => $total,
-                    'total_pages' => ceil($total / $limit)
-                ],
-                'filters' => [
-                    'categories' => $categories ?: []
-                ],
-                'statistics' => [
-                    'total_products' => $overallTotal,
-                    'active_products' => $overallActive,
-                    'low_stock_products' => $overallLowStock,
-                    'out_of_stock_products' => $overallOutOfStock
-                ]
-            ]);
-            
-        } catch (PDOException $e) {
-            error_log("❌ getProducts PDO Error: " . $e->getMessage());
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            echo json_encode([
-                'success' => false,
-                'error' => 'Database error: ' . $e->getMessage()
-            ]);
-        } catch (Exception $e) {
-            error_log("❌ getProducts Error: " . $e->getMessage());
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            echo json_encode([
-                'success' => false,
-                'error' => 'Failed to load products: ' . $e->getMessage()
-            ]);
-        } finally {
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
+        $where = "WHERE 1=1";
+        $params = [];
+        
+        // Search filter
+        if (!empty($search)) {
+            $where .= " AND (p.name LIKE ? OR p.brand LIKE ? OR p.description LIKE ?)";
+            $searchTerm = "%$search%";
+            $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm]);
         }
+        
+        // Category filter
+        if (!empty($category)) {
+            $where .= " AND p.category_id = ?";
+            $params[] = $category;
+        }
+        
+        // Status filter
+        if ($status === 'active') {
+            $where .= " AND p.is_active = 1";
+        } elseif ($status === 'inactive') {
+            $where .= " AND p.is_active = 0";
+        }
+        
+        // Stock filter
+        if ($stock === 'in_stock') {
+            $where .= " AND p.stock_quantity > p.low_stock_threshold";
+        } elseif ($stock === 'low_stock') {
+            $where .= " AND p.stock_quantity > 0 AND p.stock_quantity <= p.low_stock_threshold";
+        } elseif ($stock === 'out_of_stock') {
+            $where .= " AND p.stock_quantity = 0";
+        }
+        
+        // Get products
+        $sql = "SELECT p.*, c.name as category_name 
+                FROM products p 
+                LEFT JOIN categories c ON p.category_id = c.id 
+                $where 
+                ORDER BY p.created_at DESC 
+                LIMIT $limit OFFSET $offset";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $products = $stmt->fetchAll();
+        
+        // Get total count
+        $countSql = "SELECT COUNT(*) as total FROM products p $where";
+        $stmt = $this->pdo->prepare($countSql);
+        $stmt->execute($params);
+        $total = $stmt->fetch()['total'];
+        
+        // Get categories for filter
+        $stmt = $this->pdo->prepare("SELECT id, name FROM categories ORDER BY name");
+        $stmt->execute();
+        $categories = $stmt->fetchAll();
+        
+        // Get overall statistics (not affected by filters)
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as total FROM products");
+        $stmt->execute();
+        $overallTotal = $stmt->fetch()['total'];
+        
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as active FROM products WHERE is_active = 1");
+        $stmt->execute();
+        $overallActive = $stmt->fetch()['active'];
+        
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as low_stock FROM products WHERE stock_quantity > 0 AND stock_quantity <= low_stock_threshold");
+        $stmt->execute();
+        $overallLowStock = $stmt->fetch()['low_stock'];
+        
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as out_of_stock FROM products WHERE stock_quantity = 0");
+        $stmt->execute();
+        $overallOutOfStock = $stmt->fetch()['out_of_stock'];
+        
+        echo json_encode([
+            'success' => true,
+            'data' => $products,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $limit,
+                'total' => $total,
+                'total_pages' => ceil($total / $limit)
+            ],
+            'filters' => [
+                'categories' => $categories
+            ],
+            'statistics' => [
+                'total_products' => intval($overallTotal),
+                'active_products' => intval($overallActive),
+                'low_stock_products' => intval($overallLowStock),
+                'out_of_stock_products' => intval($overallOutOfStock)
+            ]
+        ]);
     }
     
     /**
@@ -2649,19 +2064,14 @@ class ApiController extends BaseController {
             $brand = htmlspecialchars(trim($input['brand'] ?? ''));
             $description = htmlspecialchars(trim($input['description'] ?? ''));
             $price = floatval($input['price']);
-            $priceCurrent = isset($input['price_current']) ? floatval($input['price_current']) : $price;
             $unitSize = htmlspecialchars(trim($input['unit_size'] ?? ''));
             $stockQuantity = intval($input['stock_quantity'] ?? 0);
             $lowStockThreshold = intval($input['low_stock_threshold'] ?? 10);
             $unit = htmlspecialchars(trim($input['unit'] ?? ''));
             $categoryId = intval($input['category_id']);
             $image = htmlspecialchars(trim($input['image'] ?? ''));
-            $images = is_array($input['images'] ?? []) ? $input['images'] : [];
             $nutritionInfo = htmlspecialchars(trim($input['nutrition_info'] ?? ''));
             $dietTags = is_array($input['diet_tags'] ?? []) ? $input['diet_tags'] : [];
-            $allergens = is_array($input['allergens'] ?? []) ? $input['allergens'] : [];
-            $halalCertified = isset($input['halal_certified']) ? 
-                ($input['halal_certified'] === true || $input['halal_certified'] === 1 || $input['halal_certified'] === '1') : false;
             // Handle boolean values - accept both true/false and 1/0
             $isEcoFriendly = isset($input['is_eco_friendly']) ? 
                 ($input['is_eco_friendly'] === true || $input['is_eco_friendly'] === 1 || $input['is_eco_friendly'] === '1') : false;
@@ -2682,21 +2092,22 @@ class ApiController extends BaseController {
                 throw new Exception('Invalid category');
             }
             
-            // Prepare JSON fields
-            $dietTagsJson = empty($dietTags) ? '[]' : json_encode($dietTags);
-            if ($dietTagsJson === false) $dietTagsJson = '[]';
-            
-            $allergensJson = empty($allergens) ? '[]' : json_encode($allergens);
-            if ($allergensJson === false) $allergensJson = '[]';
-            
-            $imagesJson = empty($images) ? '[]' : json_encode($images);
-            if ($imagesJson === false) $imagesJson = '[]';
+            // Prepare diet_tags JSON - handle older MySQL versions that don't support JSON
+            // For MySQL < 5.7, use TEXT and store as JSON string
+            // For MySQL >= 5.7, use JSON type
+            if (empty($dietTags) || !is_array($dietTags)) {
+                $dietTagsJson = '[]';
+            } else {
+                $dietTagsJson = json_encode($dietTags);
+                if ($dietTagsJson === false) {
+                    $dietTagsJson = '[]';
+                }
+            }
             
             // Convert boolean values to integers for MySQL compatibility (BOOLEAN = TINYINT(1))
             $isEcoFriendlyInt = $isEcoFriendly ? 1 : 0;
             $isFrozenInt = $isFrozen ? 1 : 0;
             $isActiveInt = $isActive ? 1 : 0;
-            $halalCertifiedInt = $halalCertified ? 1 : 0;
             
             // Handle empty strings as NULL for optional fields
             $brand = empty($brand) ? null : $brand;
@@ -2706,83 +2117,27 @@ class ApiController extends BaseController {
             $image = empty($image) ? null : $image;
             $nutritionInfo = empty($nutritionInfo) ? null : $nutritionInfo;
             
-            // Check which columns exist before inserting
-            $stmt = $this->pdo->query("SHOW COLUMNS FROM products");
-            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            $tableColumns = array_flip($columns);
-            
-            // Build dynamic field list based on available columns
-            $fields = ['name', 'description', 'price', 'category_id'];
-            $values = [$name, $description, $price, $categoryId];
-            
-            // Add optional fields only if column exists
-            if (isset($tableColumns['brand']) && !empty($brand)) {
-                $fields[] = 'brand';
-                $values[] = $brand;
-            }
-            if (isset($tableColumns['price_current'])) {
-                $fields[] = 'price_current';
-                $values[] = $priceCurrent;
-            }
-            if (isset($tableColumns['unit_size']) && !empty($unitSize)) {
-                $fields[] = 'unit_size';
-                $values[] = $unitSize;
-            }
-            if (isset($tableColumns['stock_quantity'])) {
-                $fields[] = 'stock_quantity';
-                $values[] = $stockQuantity;
-            }
-            if (isset($tableColumns['low_stock_threshold'])) {
-                $fields[] = 'low_stock_threshold';
-                $values[] = $lowStockThreshold;
-            }
-            if (isset($tableColumns['unit']) && !empty($unit)) {
-                $fields[] = 'unit';
-                $values[] = $unit;
-            }
-            if (isset($tableColumns['image']) && !empty($image)) {
-                $fields[] = 'image';
-                $values[] = $image;
-            }
-            if (isset($tableColumns['images'])) {
-                $fields[] = 'images';
-                $values[] = $imagesJson;
-            }
-            if (isset($tableColumns['nutrition_info']) && !empty($nutritionInfo)) {
-                $fields[] = 'nutrition_info';
-                $values[] = $nutritionInfo;
-            }
-            if (isset($tableColumns['diet_tags'])) {
-                $fields[] = 'diet_tags';
-                $values[] = $dietTagsJson;
-            }
-            if (isset($tableColumns['allergens'])) {
-                $fields[] = 'allergens';
-                $values[] = $allergensJson;
-            }
-            if (isset($tableColumns['halal_certified'])) {
-                $fields[] = 'halal_certified';
-                $values[] = $halalCertifiedInt;
-            }
-            if (isset($tableColumns['is_eco_friendly'])) {
-                $fields[] = 'is_eco_friendly';
-                $values[] = $isEcoFriendlyInt;
-            }
-            if (isset($tableColumns['is_frozen'])) {
-                $fields[] = 'is_frozen';
-                $values[] = $isFrozenInt;
-            }
-            if (isset($tableColumns['is_active'])) {
-                $fields[] = 'is_active';
-                $values[] = $isActiveInt;
-            }
-            
-            // Insert product with dynamic fields
-            $placeholders = str_repeat('?,', count($fields) - 1) . '?';
-            $sql = "INSERT INTO products (" . implode(', ', $fields) . ") VALUES ($placeholders)";
+            // Insert product - use explicit field list to avoid column count mismatches
+            $sql = "INSERT INTO products (name, brand, description, price, unit_size, stock_quantity, low_stock_threshold, unit, category_id, image, nutrition_info, diet_tags, is_eco_friendly, is_frozen, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
             $stmt = $this->pdo->prepare($sql);
-            $result = $stmt->execute($values);
+            $result = $stmt->execute([
+                $name, 
+                $brand, 
+                $description, 
+                $price, 
+                $unitSize, 
+                $stockQuantity, 
+                $lowStockThreshold, 
+                $unit, 
+                $categoryId, 
+                $image, 
+                $nutritionInfo, 
+                $dietTagsJson, 
+                $isEcoFriendlyInt, 
+                $isFrozenInt, 
+                $isActiveInt
+            ]);
             
             if (!$result) {
                 $errorInfo = $stmt->errorInfo();
@@ -3113,42 +2468,23 @@ class ApiController extends BaseController {
             $updateFields = [];
             $params = [];
             
-            // Check which columns exist
-            $stmt = $this->pdo->query("SHOW COLUMNS FROM products");
-            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            $tableColumns = array_flip($columns);
-            
-            $allowedFields = ['name', 'brand', 'description', 'price', 'price_current', 'unit_size', 'stock_quantity', 'low_stock_threshold', 'unit', 'category_id', 'image', 'images', 'nutrition_info', 'diet_tags', 'allergens', 'halal_certified', 'is_eco_friendly', 'is_frozen', 'is_active'];
+            $allowedFields = ['name', 'brand', 'description', 'price', 'unit_size', 'stock_quantity', 'low_stock_threshold', 'unit', 'category_id', 'image', 'nutrition_info', 'diet_tags', 'is_eco_friendly', 'is_frozen', 'is_active'];
             
             foreach ($allowedFields as $field) {
-                if (isset($input[$field]) && isset($tableColumns[$field])) {
-                    if (in_array($field, ['diet_tags', 'allergens', 'images'])) {
+                if (isset($input[$field])) {
+                    if ($field === 'diet_tags') {
                         $updateFields[] = "$field = ?";
                         $params[] = json_encode(is_array($input[$field]) ? $input[$field] : []);
-                    } elseif (in_array($field, ['is_eco_friendly', 'is_frozen', 'is_active', 'halal_certified'])) {
+                    } elseif (in_array($field, ['is_eco_friendly', 'is_frozen', 'is_active'])) {
                         $updateFields[] = "$field = ?";
-                        $val = $input[$field];
-                        $params[] = ($val === true || $val === 1 || $val === '1') ? 1 : 0;
-                    } elseif (in_array($field, ['price', 'price_current', 'stock_quantity', 'low_stock_threshold', 'category_id'])) {
+                        $params[] = (bool)$input[$field];
+                    } elseif (in_array($field, ['price', 'stock_quantity', 'low_stock_threshold', 'category_id'])) {
                         $updateFields[] = "$field = ?";
                         $params[] = floatval($input[$field]);
                     } else {
                         $updateFields[] = "$field = ?";
                         $params[] = htmlspecialchars(trim($input[$field]));
                     }
-                }
-            }
-            
-            // Track price changes for history
-            if (isset($input['price']) && $input['price'] != $product['price'] && isset($tableColumns['price_current'])) {
-                // Insert into price history
-                try {
-                    $adminId = $_SESSION['user_id'] ?? null;
-                    $stmt = $this->pdo->prepare("INSERT INTO product_price_history (product_id, price, changed_by_admin_id) VALUES (?, ?, ?)");
-                    $stmt->execute([$productId, $input['price'], $adminId]);
-                } catch (Exception $e) {
-                    // Table might not exist, log and continue
-                    error_log("Price history insert failed: " . $e->getMessage());
                 }
             }
             
@@ -3270,186 +2606,56 @@ class ApiController extends BaseController {
      * GET /api/admin/coupons
      */
     public function getCoupons() {
-        // Suppress error display for API
-        $displayErrors = ini_get('display_errors');
-        ini_set('display_errors', '0');
+        $this->requireAdminJson();
+        $this->setJsonHeaders();
         
-        // Start output buffering
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-        ob_start();
+        $page = intval($_GET['page'] ?? 1);
+        $limit = intval($_GET['limit'] ?? 20);
+        $offset = ($page - 1) * $limit;
+        $search = $_GET['search'] ?? '';
+        $status = $_GET['status'] ?? 'all'; // all, active, inactive, expired
         
-        try {
-            // Check admin access first
-            if (!$this->adminMiddleware || !$this->adminMiddleware->isAdmin()) {
-                error_log("❌ getCoupons: Admin access denied. User ID: " . ($_SESSION['user_id'] ?? 'not set') . ", Role: " . ($_SESSION['role'] ?? 'not set'));
-                while (ob_get_level()) {
-                    ob_end_clean();
-                }
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(403);
-                }
-                echo json_encode(['success' => false, 'error' => 'Access denied. Admin privileges required.']);
-                exit;
-            }
-            
-            $this->setJsonHeaders();
-            
-            $page = intval($_GET['page'] ?? 1);
-            $limit = intval($_GET['limit'] ?? 20);
-            $offset = ($page - 1) * $limit;
-            $search = $_GET['search'] ?? '';
-            $status = $_GET['status'] ?? 'all'; // all, active, inactive, expired
-            $type = $_GET['type'] ?? 'all'; // all, percentage, flat
-            
-            $where = "WHERE 1=1";
-            $params = [];
-            
-            // Search filter
-            if (!empty($search)) {
-                $where .= " AND code LIKE ?";
-                $params[] = "%$search%";
-            }
-            
-            // Type filter
-            if ($type !== 'all' && in_array($type, ['percentage', 'flat'])) {
-                $where .= " AND discount_type = ?";
-                $params[] = $type;
-            }
-            
-            // Status filter
-            if ($status === 'active') {
-                $where .= " AND is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) AND (usage_limit IS NULL OR used_count < usage_limit)";
-            } elseif ($status === 'inactive') {
-                $where .= " AND is_active = 0";
-            } elseif ($status === 'expired') {
-                $where .= " AND expiry_date IS NOT NULL AND expiry_date < CURDATE()";
-            }
-            
-            // Initialize defaults
-            $coupons = [];
-            $total = 0;
-            $overallTotal = 0;
-            $overallActive = 0;
-            $overallExpired = 0;
-            $overallUsage = 0;
-            
-            // Get coupons
-            try {
-                $sql = "SELECT * FROM coupons $where ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
-                
-                $stmt = $this->pdo->prepare($sql);
-                $stmt->execute($params);
-                $coupons = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Ensure all coupons have required fields
-                foreach ($coupons as &$coupon) {
-                    $coupon['discount_type'] = $coupon['discount_type'] ?? 'percentage';
-                    $coupon['discount_value'] = isset($coupon['discount_value']) ? floatval($coupon['discount_value']) : 0;
-                    $coupon['min_order_amount'] = isset($coupon['min_order_amount']) ? floatval($coupon['min_order_amount']) : 0;
-                    $coupon['used_count'] = isset($coupon['used_count']) ? intval($coupon['used_count']) : 0;
-                    $coupon['usage_limit'] = isset($coupon['usage_limit']) ? ($coupon['usage_limit'] ? intval($coupon['usage_limit']) : null) : null;
-                    $coupon['max_uses_per_user'] = isset($coupon['max_uses_per_user']) ? intval($coupon['max_uses_per_user']) : 1;
-                    $coupon['is_active'] = isset($coupon['is_active']) ? (bool)$coupon['is_active'] : true;
-                }
-                unset($coupon); // Break reference
-            } catch (PDOException $e) {
-                error_log("❌ getCoupons Query Error: " . $e->getMessage());
-                error_log("❌ SQL: " . ($sql ?? 'N/A'));
-                throw $e;
-            }
-            
-            // Get total count
-            try {
-                $countSql = "SELECT COUNT(*) as total FROM coupons $where";
-                $stmt = $this->pdo->prepare($countSql);
-                $stmt->execute($params);
-                $total = intval($stmt->fetch()['total']);
-            } catch (PDOException $e) {
-                error_log("❌ getCoupons Count Query Error: " . $e->getMessage());
-                $total = 0;
-            }
-            
-            // Get overall statistics (not affected by filters)
-            try {
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as total FROM coupons");
-                $stmt->execute();
-                $overallTotal = intval($stmt->fetch()['total']);
-                
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as active FROM coupons WHERE is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) AND (usage_limit IS NULL OR used_count < usage_limit)");
-                $stmt->execute();
-                $overallActive = intval($stmt->fetch()['active']);
-                
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as expired FROM coupons WHERE expiry_date IS NOT NULL AND expiry_date < CURDATE()");
-                $stmt->execute();
-                $overallExpired = intval($stmt->fetch()['expired']);
-                
-                $stmt = $this->pdo->prepare("SELECT SUM(used_count) as total_usage FROM coupons");
-                $stmt->execute();
-                $overallUsage = intval($stmt->fetch()['total_usage'] ?? 0);
-            } catch (PDOException $e) {
-                error_log("❌ getCoupons Statistics Query Error: " . $e->getMessage());
-            }
-            
-            // Clear output buffer
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-            }
-            
-            echo json_encode([
-                'success' => true,
-                'data' => $coupons ?: [],
-                'pagination' => [
-                    'current_page' => $page,
-                    'per_page' => $limit,
-                    'total' => $total,
-                    'total_pages' => ceil($total / $limit)
-                ],
-                'statistics' => [
-                    'total' => $overallTotal,
-                    'active' => $overallActive,
-                    'expired' => $overallExpired,
-                    'total_usage' => $overallUsage
-                ]
-            ]);
-            
-        } catch (PDOException $e) {
-            error_log("❌ getCoupons PDO Error: " . $e->getMessage());
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            echo json_encode([
-                'success' => false,
-                'error' => 'Database error: ' . $e->getMessage()
-            ]);
-        } catch (Exception $e) {
-            error_log("❌ getCoupons Error: " . $e->getMessage());
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            echo json_encode([
-                'success' => false,
-                'error' => 'Failed to load coupons: ' . $e->getMessage()
-            ]);
-        } finally {
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
+        $where = "WHERE 1=1";
+        $params = [];
+        
+        // Search filter
+        if (!empty($search)) {
+            $where .= " AND code LIKE ?";
+            $params[] = "%$search%";
         }
+        
+        // Status filter
+        if ($status === 'active') {
+            $where .= " AND is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) AND (usage_limit IS NULL OR used_count < usage_limit)";
+        } elseif ($status === 'inactive') {
+            $where .= " AND is_active = 0";
+        } elseif ($status === 'expired') {
+            $where .= " AND expiry_date < CURDATE()";
+        }
+        
+        // Get coupons
+        $sql = "SELECT * FROM coupons $where ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $coupons = $stmt->fetchAll();
+        
+        // Get total count
+        $countSql = "SELECT COUNT(*) as total FROM coupons $where";
+        $stmt = $this->pdo->prepare($countSql);
+        $stmt->execute($params);
+        $total = $stmt->fetch()['total'];
+        
+        echo json_encode([
+            'success' => true,
+            'data' => $coupons,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $limit,
+                'total' => $total,
+                'total_pages' => ceil($total / $limit)
+            ]
+        ]);
     }
     
     /**
@@ -3488,12 +2694,8 @@ class ApiController extends BaseController {
             
             // Sanitize and validate data
             $code = strtoupper(trim($input['code']));
-            // Handle both "fixed" and "flat" for discount type
-            $discountType = $input['discount_type'] ?? $input['type'] ?? '';
-            if ($discountType === 'fixed') {
-                $discountType = 'flat';
-            }
-            $discountValue = floatval($input['discount_value'] ?? $input['value'] ?? 0);
+            $discountType = $input['discount_type'];
+            $discountValue = floatval($input['discount_value']);
             $minOrderAmount = floatval($input['min_order_amount'] ?? 0);
             $startDate = $input['start_date'] ?? null;
             $expiryDate = $input['expiry_date'] ?? null;
@@ -3503,7 +2705,7 @@ class ApiController extends BaseController {
             
             // Validate discount type
             if (!in_array($discountType, ['percentage', 'flat'])) {
-                throw new Exception('Invalid discount type. Must be "percentage" or "flat".');
+                throw new Exception('Invalid discount type');
             }
             
             // Validate discount value
@@ -3516,17 +2718,8 @@ class ApiController extends BaseController {
             }
             
             // Validate dates
-            if ($startDate && $expiryDate && strtotime($startDate) > strtotime($expiryDate)) {
+            if ($startDate && $expiryDate && $startDate > $expiryDate) {
                 throw new Exception('Start date cannot be after expiry date');
-            }
-            
-            // Validate dates are not in the past (optional - can remove if you want past dates)
-            $today = date('Y-m-d');
-            if ($startDate && $startDate < $today) {
-                // Allow past start dates for flexibility
-            }
-            if ($expiryDate && $expiryDate < $today) {
-                // Allow past expiry dates for flexibility
             }
             
             // Check if code already exists
@@ -3609,54 +2802,17 @@ class ApiController extends BaseController {
             foreach ($allowedFields as $field) {
                 if (isset($input[$field])) {
                     if ($field === 'code') {
-                        // Check if code is being changed and if new code already exists
-                        $newCode = strtoupper(trim($input[$field]));
-                        if ($newCode !== $coupon['code']) {
-                            $stmt = $this->pdo->prepare("SELECT id FROM coupons WHERE code = ? AND id != ?");
-                            $stmt->execute([$newCode, $couponId]);
-                            if ($stmt->fetch()) {
-                                throw new Exception('Coupon code already exists');
-                            }
-                        }
                         $updateFields[] = "$field = ?";
-                        $params[] = $newCode;
-                    } elseif ($field === 'discount_type') {
-                        // Handle both "fixed" and "flat" for discount type
-                        $discountType = $input[$field];
-                        if ($discountType === 'fixed') {
-                            $discountType = 'flat';
-                        }
-                        if (!in_array($discountType, ['percentage', 'flat'])) {
-                            throw new Exception('Invalid discount type');
-                        }
-                        $updateFields[] = "$field = ?";
-                        $params[] = $discountType;
+                        $params[] = strtoupper(trim($input[$field]));
                     } elseif (in_array($field, ['discount_value', 'min_order_amount'])) {
                         $updateFields[] = "$field = ?";
                         $params[] = floatval($input[$field]);
                     } elseif (in_array($field, ['usage_limit', 'max_uses_per_user'])) {
-                        $val = $input[$field];
-                        // Handle empty string as null for usage_limit
-                        if ($field === 'usage_limit' && ($val === '' || $val === null)) {
-                            $updateFields[] = "$field = NULL";
-                            // Don't add to params for NULL
-                        } else {
-                            $updateFields[] = "$field = ?";
-                            $params[] = intval($val);
-                        }
+                        $updateFields[] = "$field = ?";
+                        $params[] = intval($input[$field]);
                     } elseif ($field === 'is_active') {
                         $updateFields[] = "$field = ?";
-                        $params[] = (bool)$input[$field] ? 1 : 0;
-                    } elseif (in_array($field, ['start_date', 'expiry_date'])) {
-                        // Handle date fields - allow empty string to set to NULL
-                        if ($input[$field] === '' || $input[$field] === null) {
-                            $updateFields[] = "$field = NULL";
-                            // Don't add to params for NULL - but we need to use a different approach
-                            // Replace NULL with proper NULL handling
-                        } else {
-                            $updateFields[] = "$field = ?";
-                            $params[] = $input[$field];
-                        }
+                        $params[] = (bool)$input[$field];
                     } else {
                         $updateFields[] = "$field = ?";
                         $params[] = $input[$field];
@@ -3670,173 +2826,11 @@ class ApiController extends BaseController {
                 exit;
             }
             
-            // Validate discount value if being updated
-            if (isset($input['discount_value'])) {
-                $discountValue = floatval($input['discount_value']);
-                if ($discountValue <= 0) {
-                    throw new Exception('Discount value must be greater than 0');
-                }
-                
-                $currentDiscountType = $input['discount_type'] ?? $coupon['discount_type'];
-                if ($currentDiscountType === 'percentage' && $discountValue > 100) {
-                    throw new Exception('Percentage discount cannot exceed 100%');
-                }
-            }
-            
-            // Validate dates if being updated
-            if (isset($input['start_date']) && isset($input['expiry_date'])) {
-                $startDate = $input['start_date'] ?: null;
-                $expiryDate = $input['expiry_date'] ?: null;
-                if ($startDate && $expiryDate && strtotime($startDate) > strtotime($expiryDate)) {
-                    throw new Exception('Start date cannot be after expiry date');
-                }
-            }
-            
-            // Handle NULL values properly - need to separate fields with NULL from those with params
-            $fieldsWithNull = [];
-            $fieldsWithParams = [];
-            $paramsForFields = [];
-            
-            foreach ($updateFields as $fieldUpdate) {
-                if (strpos($fieldUpdate, '= NULL') !== false) {
-                    $fieldsWithNull[] = $fieldUpdate;
-                } else {
-                    $fieldsWithParams[] = $fieldUpdate;
-                    // Get the param index from the field update string
-                    // Since we're building in order, we can use array index
-                    $fieldName = explode(' =', $fieldUpdate)[0];
-                    // Find the corresponding param value
-                    // This is tricky - let's rebuild properly
-                }
-            }
-            
-            // Rebuild update fields and params properly
-            $finalUpdateFields = [];
-            $finalParams = [];
-            
-            foreach ($updateFields as $idx => $fieldUpdate) {
-                if (strpos($fieldUpdate, '= NULL') !== false) {
-                    $finalUpdateFields[] = $fieldUpdate;
-                } else {
-                    $finalUpdateFields[] = $fieldUpdate;
-                    // Find corresponding param value
-                    // Since params array is built in same order as updateFields
-                    // We need to count how many non-NULL fields came before this one
-                    $nonNullCount = 0;
-                    for ($i = 0; $i < $idx; $i++) {
-                        if (strpos($updateFields[$i], '= NULL') === false) {
-                            $nonNullCount++;
-                        }
-                    }
-                    // Get the param at this index (accounting for non-NULL fields before)
-                    // Actually, params array is built sequentially, so we can use the count
-                    // But wait, we need to rebuild this properly
-            
-            // Simpler approach: rebuild the whole thing
-            $finalUpdateFields = [];
-            $finalParams = [];
-            $paramIndex = 0;
-            
-            foreach ($allowedFields as $field) {
-                if (isset($input[$field])) {
-                    if ($field === 'code') {
-                        $finalUpdateFields[] = "$field = ?";
-                        $finalParams[] = strtoupper(trim($input[$field]));
-                    } elseif ($field === 'discount_type') {
-                        $discountType = $input[$field];
-                        if ($discountType === 'fixed') $discountType = 'flat';
-                        $finalUpdateFields[] = "$field = ?";
-                        $finalParams[] = $discountType;
-                    } elseif (in_array($field, ['discount_value', 'min_order_amount'])) {
-                        $finalUpdateFields[] = "$field = ?";
-                        $finalParams[] = floatval($input[$field]);
-                    } elseif ($field === 'usage_limit') {
-                        $val = $input[$field];
-                        if ($val === '' || $val === null) {
-                            $finalUpdateFields[] = "$field = NULL";
-                        } else {
-                            $finalUpdateFields[] = "$field = ?";
-                            $finalParams[] = intval($val);
-                        }
-                    } elseif ($field === 'max_uses_per_user') {
-                        $finalUpdateFields[] = "$field = ?";
-                        $finalParams[] = intval($input[$field]);
-                    } elseif ($field === 'is_active') {
-                        $finalUpdateFields[] = "$field = ?";
-                        $finalParams[] = (bool)$input[$field] ? 1 : 0;
-                    } elseif (in_array($field, ['start_date', 'expiry_date'])) {
-                        if ($input[$field] === '' || $input[$field] === null) {
-                            $finalUpdateFields[] = "$field = NULL";
-                        } else {
-                            $finalUpdateFields[] = "$field = ?";
-                            $finalParams[] = $input[$field];
-                        }
-                    }
-                }
-            }
-            
-            $finalParams[] = $couponId;
-            $sql = "UPDATE coupons SET " . implode(', ', $finalUpdateFields) . " WHERE id = ?";
-            
-            // Replace = NULL with proper NULL binding - actually MySQL accepts = NULL in prepared statements
-            // But PDO requires us to bind NULL properly, so let's use COALESCE or handle differently
-            // Actually, for simplicity, let's just execute the SQL directly for NULL values
-            // But that's not safe. Let's rebuild without the complex logic above and handle it properly
-            
-            // Simpler: rebuild updateFields and params from scratch based on input
-            $rebuildUpdateFields = [];
-            $rebuildParams = [];
-            
-            foreach ($allowedFields as $field) {
-                if (isset($input[$field])) {
-                    if ($field === 'code') {
-                        $rebuildUpdateFields[] = "$field = ?";
-                        $rebuildParams[] = strtoupper(trim($input[$field]));
-                    } elseif ($field === 'discount_type') {
-                        $discountType = $input[$field];
-                        if ($discountType === 'fixed') $discountType = 'flat';
-                        $rebuildUpdateFields[] = "$field = ?";
-                        $rebuildParams[] = $discountType;
-                    } elseif (in_array($field, ['discount_value', 'min_order_amount'])) {
-                        $rebuildUpdateFields[] = "$field = ?";
-                        $rebuildParams[] = floatval($input[$field]);
-                    } elseif ($field === 'usage_limit') {
-                        $val = $input[$field];
-                        if ($val === '' || $val === null) {
-                            // Use NULL binding for PDO
-                            $rebuildUpdateFields[] = "$field = NULL";
-                        } else {
-                            $rebuildUpdateFields[] = "$field = ?";
-                            $rebuildParams[] = intval($val);
-                        }
-                    } elseif ($field === 'max_uses_per_user') {
-                        $rebuildUpdateFields[] = "$field = ?";
-                        $rebuildParams[] = intval($input[$field]);
-                    } elseif ($field === 'is_active') {
-                        $rebuildUpdateFields[] = "$field = ?";
-                        $rebuildParams[] = (bool)$input[$field] ? 1 : 0;
-                    } elseif (in_array($field, ['start_date', 'expiry_date'])) {
-                        if ($input[$field] === '' || $input[$field] === null) {
-                            $rebuildUpdateFields[] = "$field = NULL";
-                        } else {
-                            $rebuildUpdateFields[] = "$field = ?";
-                            $rebuildParams[] = $input[$field];
-                        }
-                    }
-                }
-            }
-            
-            if (empty($rebuildUpdateFields)) {
-                $this->pdo->rollback();
-                echo json_encode(['success' => false, 'error' => 'No fields to update']);
-                exit;
-            }
-            
-            $rebuildParams[] = $couponId;
-            $sql = "UPDATE coupons SET " . implode(', ', $rebuildUpdateFields) . " WHERE id = ?";
+            $params[] = $couponId;
+            $sql = "UPDATE coupons SET " . implode(', ', $updateFields) . " WHERE id = ?";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($rebuildParams);
+            $stmt->execute($params);
             
             $this->pdo->commit();
             
@@ -3944,84 +2938,56 @@ class ApiController extends BaseController {
      * GET /api/admin/users
      */
     public function getUsers() {
-        // Suppress error display for API
-        $displayErrors = ini_get('display_errors');
-        ini_set('display_errors', '0');
+        $this->requireAdminJson();
+        $this->setJsonHeaders();
         
-        // Start output buffering
-        while (ob_get_level()) {
-            ob_end_clean();
+        $page = intval($_GET['page'] ?? 1);
+        $limit = intval($_GET['limit'] ?? 20);
+        $offset = ($page - 1) * $limit;
+        $search = $_GET['search'] ?? '';
+        $role = $_GET['role'] ?? '';
+        $sort = $_GET['sort'] ?? 'created_at'; // loyalty_points, total_orders, created_at, last_order_date
+        $order = $_GET['order'] ?? 'desc';
+        $status = $_GET['status'] ?? ''; // active, inactive, vip, high_priority
+        
+        $where = "WHERE 1=1";
+        $params = [];
+        
+        // Search filter
+        if (!empty($search)) {
+            $where .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
+            $searchTerm = "%$search%";
+            $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
         }
-        ob_start();
         
-        try {
-            // Check admin access first
-            if (!$this->adminMiddleware || !$this->adminMiddleware->isAdmin()) {
-                error_log("❌ getUsers: Admin access denied. User ID: " . ($_SESSION['user_id'] ?? 'not set') . ", Role: " . ($_SESSION['role'] ?? 'not set'));
-                while (ob_get_level()) {
-                    ob_end_clean();
-                }
-                if (!headers_sent()) {
-                    $this->setJsonHeaders();
-                    http_response_code(403);
-                }
-                echo json_encode(['success' => false, 'error' => 'Access denied. Admin privileges required.']);
-                exit;
-            }
-            
-            $this->setJsonHeaders();
-            
-            $page = intval($_GET['page'] ?? 1);
-            $limit = intval($_GET['limit'] ?? 20);
-            $offset = ($page - 1) * $limit;
-            $search = $_GET['search'] ?? '';
-            $role = $_GET['role'] ?? '';
-            $sort = $_GET['sort'] ?? 'created_at'; // loyalty_points, total_orders, created_at, last_order_date
-            $order = $_GET['order'] ?? 'desc';
-            $status = $_GET['status'] ?? ''; // active, inactive, vip, high_priority
-            
-            $where = "WHERE 1=1";
-            $params = [];
-            
-            // Search filter
-            if (!empty($search)) {
-                $where .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
-                $searchTerm = "%$search%";
-                $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
-            }
-            
-            // Role filter
-            if (!empty($role)) {
-                $where .= " AND u.role = ?";
-                $params[] = $role;
-            }
-            
-            // Status filter
-            if ($status === 'active') {
-                $where .= " AND u.account_active = 1";
-            } elseif ($status === 'inactive') {
-                $where .= " AND u.account_active = 0";
-            } elseif ($status === 'vip') {
-                $where .= " AND u.is_vip = 1";
-            } elseif ($status === 'high_priority') {
-                $where .= " AND u.is_high_priority = 1";
-            }
-            
-            // Validate sort field
-            $allowedSorts = ['loyalty_points', 'total_orders', 'created_at', 'last_order_date', 'total_spent'];
-            if (!in_array($sort, $allowedSorts)) {
-                $sort = 'created_at';
-            }
-            
-            // Validate order
-            $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
-            
-            // Initialize defaults
-            $users = [];
-            $total = 0;
-            
-            // Get users with comprehensive statistics
-            $sql = "SELECT u.*, 
+        // Role filter
+        if (!empty($role)) {
+            $where .= " AND u.role = ?";
+            $params[] = $role;
+        }
+        
+        // Status filter
+        if ($status === 'active') {
+            $where .= " AND u.account_active = 1";
+        } elseif ($status === 'inactive') {
+            $where .= " AND u.account_active = 0";
+        } elseif ($status === 'vip') {
+            $where .= " AND u.is_vip = 1";
+        } elseif ($status === 'high_priority') {
+            $where .= " AND u.is_high_priority = 1";
+        }
+        
+        // Validate sort field
+        $allowedSorts = ['loyalty_points', 'total_orders', 'created_at', 'last_order_date', 'total_spent'];
+        if (!in_array($sort, $allowedSorts)) {
+            $sort = 'created_at';
+        }
+        
+        // Validate order
+        $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
+        
+        // Get users with comprehensive statistics
+        $sql = "SELECT u.*, 
                        COALESCE(order_stats.total_orders, 0) as total_orders,
                        COALESCE(order_stats.last_order_date, NULL) as last_order_date,
                        COALESCE(order_stats.total_spent, 0) as total_spent,
@@ -4048,144 +3014,61 @@ class ApiController extends BaseController {
                 ORDER BY u.$sort $order
                 LIMIT $limit OFFSET $offset";
         
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
-            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Get total count
-            $countSql = "SELECT COUNT(*) as total FROM users u $where";
-            $stmt = $this->pdo->prepare($countSql);
-            $stmt->execute($params);
-            $total = intval($stmt->fetch()['total']);
-            
-            // Process users data
-            foreach ($users as &$user) {
-                // Parse diet profile JSON
-                if (!empty($user['diet_profile'])) {
-                    $user['diet_profile'] = json_decode($user['diet_profile'], true) ?: [];
-                } else {
-                    $user['diet_profile'] = [];
-                }
-                
-                // Remove sensitive data
-                unset($user['password_hash']);
-                
-                // Format dates
-                if (!empty($user['last_order_date'])) {
-                    $user['last_order_date_formatted'] = date('M j, Y', strtotime($user['last_order_date']));
-                }
-                if (!empty($user['created_at'])) {
-                    $user['created_at_formatted'] = date('M j, Y', strtotime($user['created_at']));
-                }
-                
-                // Parse diet profile if it's a JSON string
-                if (!empty($user['diet_profile']) && is_string($user['diet_profile'])) {
-                    $dietProfileDecoded = json_decode($user['diet_profile'], true);
-                    $user['diet_profile'] = is_array($dietProfileDecoded) ? $dietProfileDecoded : [];
-                } elseif (empty($user['diet_profile'])) {
-                    $user['diet_profile'] = [];
-                }
-                
-                // Add diet flags for easy display
-                $user['diet_flags'] = $this->getDietFlags($user['diet_profile']);
-                
-                // Add user status indicators
-                $user['status_indicators'] = [
-                    'is_vip' => (bool)($user['is_vip'] ?? false),
-                    'is_high_priority' => (bool)($user['is_high_priority'] ?? false),
-                    'account_active' => (bool)($user['account_active'] ?? true),
-                    'has_admin_notes' => !empty($user['admin_notes'] ?? '')
-                ];
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $users = $stmt->fetchAll();
+        
+        // Get total count
+        $countSql = "SELECT COUNT(*) as total FROM users u $where";
+        $stmt = $this->pdo->prepare($countSql);
+        $stmt->execute($params);
+        $total = $stmt->fetch()['total'];
+        
+        // Process users data
+        foreach ($users as &$user) {
+            // Parse diet profile JSON
+            if ($user['diet_profile']) {
+                $user['diet_profile'] = json_decode($user['diet_profile'], true) ?: [];
+            } else {
+                $user['diet_profile'] = [];
             }
             
-            // Clear output buffer
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
+            // Remove sensitive data
+            unset($user['password_hash']);
             
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
+            // Format dates
+            if ($user['last_order_date']) {
+                $user['last_order_date_formatted'] = date('M j, Y', strtotime($user['last_order_date']));
             }
+            $user['created_at_formatted'] = date('M j, Y', strtotime($user['created_at']));
             
-            // Get overall statistics (not affected by filters)
-            $overallTotal = 0;
-            $overallVip = 0;
-            $overallHighPriority = 0;
-            $overallActiveSubscriptions = 0;
+            // Add diet flags for easy display
+            $user['diet_flags'] = $this->getDietFlags($user['diet_profile']);
             
-            try {
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as total FROM users WHERE role = 'customer'");
-                $stmt->execute();
-                $overallTotal = intval($stmt->fetch()['total']);
-                
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as vip FROM users WHERE is_vip = 1 AND role = 'customer'");
-                $stmt->execute();
-                $overallVip = intval($stmt->fetch()['vip']);
-                
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as high_priority FROM users WHERE is_high_priority = 1 AND role = 'customer'");
-                $stmt->execute();
-                $overallHighPriority = intval($stmt->fetch()['high_priority']);
-                
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) as active_subscriptions FROM subscriptions WHERE status = 'active'");
-                $stmt->execute();
-                $overallActiveSubscriptions = intval($stmt->fetch()['active_subscriptions']);
-            } catch (PDOException $e) {
-                error_log("❌ getUsers Statistics Query Error: " . $e->getMessage());
-            }
-            
-            echo json_encode([
-                'success' => true,
-                'data' => $users ?: [],
-                'pagination' => [
-                    'current_page' => $page,
-                    'per_page' => $limit,
-                    'total' => $total,
-                    'total_pages' => ceil($total / $limit)
-                ],
-                'filters' => [
-                    'roles' => ['customer', 'admin'],
-                    'statuses' => ['active', 'inactive', 'vip', 'high_priority'],
-                    'sort_options' => $allowedSorts
-                ],
-                'statistics' => [
-                    'total_users' => $overallTotal,
-                    'vip_users' => $overallVip,
-                    'high_priority_users' => $overallHighPriority,
-                    'active_subscriptions' => $overallActiveSubscriptions
-                ]
-            ]);
-            
-        } catch (PDOException $e) {
-            error_log("❌ getUsers PDO Error: " . $e->getMessage());
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            echo json_encode([
-                'success' => false,
-                'error' => 'Database error: ' . $e->getMessage()
-            ]);
-        } catch (Exception $e) {
-            error_log("❌ getUsers Error: " . $e->getMessage());
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            if (!headers_sent()) {
-                $this->setJsonHeaders();
-                http_response_code(500);
-            }
-            echo json_encode([
-                'success' => false,
-                'error' => 'Failed to load users: ' . $e->getMessage()
-            ]);
-        } finally {
-            if (isset($displayErrors)) {
-                ini_set('display_errors', $displayErrors);
-            }
+            // Add user status indicators
+            $user['status_indicators'] = [
+                'is_vip' => (bool)$user['is_vip'],
+                'is_high_priority' => (bool)$user['is_high_priority'],
+                'account_active' => (bool)$user['account_active'],
+                'has_admin_notes' => !empty($user['admin_notes'])
+            ];
         }
+        
+        echo json_encode([
+            'success' => true,
+            'data' => $users,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $limit,
+                'total' => $total,
+                'total_pages' => ceil($total / $limit)
+            ],
+            'filters' => [
+                'roles' => ['customer', 'admin'],
+                'statuses' => ['active', 'inactive', 'vip', 'high_priority'],
+                'sort_options' => $allowedSorts
+            ]
+        ]);
     }
     
     /**
@@ -4194,60 +3077,37 @@ class ApiController extends BaseController {
     private function getDietFlags($dietProfile) {
         $flags = [];
         
-        if (empty($dietProfile) || !is_array($dietProfile)) {
+        if (empty($dietProfile)) {
             return $flags;
         }
         
-        // Extract diet goal (can be 'goal' or 'diet_goal')
-        $goal = $dietProfile['goal'] ?? $dietProfile['diet_goal'] ?? '';
+        // Extract diet preferences from JSON
+        $preferences = $dietProfile['dietary_preferences'] ?? [];
+        $goal = $dietProfile['diet_goal'] ?? '';
         
-        // Extract preferences (can be 'allergies', 'dietary_preferences', or directly as array)
-        $preferences = $dietProfile['allergies'] ?? $dietProfile['dietary_preferences'] ?? [];
-        if (!is_array($preferences)) {
-            $preferences = [];
-        }
-        
-        // Map diet goals to display flags
+        // Map diet goals to flags
         $goalFlags = [
-            'weight_loss' => 'weight-loss-friendly',
-            'muscle_gain' => 'high-protein',
-            'diabetic' => 'diabetic-friendly',
+            'vegetarian' => 'vegetarian',
+            'vegan' => 'vegan',
             'diabetes_friendly' => 'diabetic-friendly',
             'low_sodium' => 'low-sodium',
-            'vegetarian' => 'vegetarian',
-            'halal_only' => 'halal',
-            'balanced' => 'balanced',
-            'keto' => 'keto',
             'ketogenic' => 'keto',
-            'paleo' => 'paleo',
             'paleolithic' => 'paleo',
             'mediterranean' => 'mediterranean',
             'heart_health' => 'heart-healthy',
-            'heart-healthy' => 'heart-healthy',
-            'low_carb' => 'low-carb',
             'low_carbohydrate' => 'low-carb',
-            'high_protein' => 'high-protein',
-            'vegan' => 'vegan'
+            'high_protein' => 'high-protein'
         ];
         
-        // Add goal flag if it matches
-        if (!empty($goal) && isset($goalFlags[$goal])) {
+        if (isset($goalFlags[$goal])) {
             $flags[] = $goalFlags[$goal];
         }
         
-        // Add flags from allergies/preferences
-        foreach ($preferences as $pref) {
-            if (is_string($pref) && isset($goalFlags[$pref])) {
-                $flags[] = $goalFlags[$pref];
-            } elseif (is_string($pref)) {
-                // Try to match partial names
-                $prefLower = strtolower(str_replace(['-', '_'], '', $pref));
-                foreach ($goalFlags as $key => $value) {
-                    $keyLower = strtolower(str_replace(['-', '_'], '', $key));
-                    if ($prefLower === $keyLower || strpos($prefLower, $keyLower) !== false) {
-                        $flags[] = $value;
-                        break;
-                    }
+        // Add additional flags from preferences
+        if (is_array($preferences)) {
+            foreach ($preferences as $pref) {
+                if (isset($goalFlags[$pref])) {
+                    $flags[] = $goalFlags[$pref];
                 }
             }
         }
@@ -4284,30 +3144,11 @@ class ApiController extends BaseController {
             // Remove sensitive data
             unset($user['password_hash']);
             
-            // Parse diet profile - handle both JSON string and array
-            if (!empty($user['diet_profile'])) {
-                if (is_string($user['diet_profile'])) {
-                    $dietProfile = json_decode($user['diet_profile'], true);
-                    $user['diet_profile'] = is_array($dietProfile) ? $dietProfile : [];
-                } elseif (!is_array($user['diet_profile'])) {
-                    $user['diet_profile'] = [];
-                }
+            // Parse diet profile
+            if ($user['diet_profile']) {
+                $user['diet_profile'] = json_decode($user['diet_profile'], true) ?: [];
             } else {
                 $user['diet_profile'] = [];
-            }
-            
-            // Ensure diet_profile has standard structure
-            if (empty($user['diet_profile']['goal'])) {
-                $user['diet_profile']['goal'] = null;
-            }
-            if (empty($user['diet_profile']['allergies']) || !is_array($user['diet_profile']['allergies'])) {
-                $user['diet_profile']['allergies'] = [];
-            }
-            if (empty($user['diet_profile']['calorie_target_per_day'])) {
-                $user['diet_profile']['calorie_target_per_day'] = $user['diet_profile']['calorie_target'] ?? null;
-            }
-            if (empty($user['diet_profile']['calorie_target'])) {
-                $user['diet_profile']['calorie_target'] = $user['diet_profile']['calorie_target_per_day'] ?? null;
             }
             
             // Get recent orders (last 5) with more details
@@ -4384,26 +3225,17 @@ class ApiController extends BaseController {
                 'next_tier_points' => $this->getNextTierPoints($user['loyalty_points'])
             ];
             
-            // Get admin audit log for this user (if table exists)
-            $auditLog = [];
-            try {
-                $stmt = $this->pdo->query("SHOW TABLES LIKE 'admin_audit_log'");
-                if ($stmt->rowCount() > 0) {
-                    $stmt = $this->pdo->prepare("
-                        SELECT aal.*, u.first_name, u.last_name
-                        FROM admin_audit_log aal
-                        JOIN users u ON aal.admin_id = u.id
-                        WHERE aal.user_id = ?
-                        ORDER BY aal.created_at DESC
-                        LIMIT 10
-                    ");
-                    $stmt->execute([$userId]);
-                    $auditLog = $stmt->fetchAll();
-                }
-            } catch (PDOException $e) {
-                error_log("Admin audit log table not found or error: " . $e->getMessage());
-                // Table doesn't exist, continue without audit log
-            }
+            // Get admin audit log for this user
+            $stmt = $this->pdo->prepare("
+                SELECT aal.*, u.first_name, u.last_name
+                FROM admin_audit_log aal
+                JOIN users u ON aal.admin_id = u.id
+                WHERE aal.user_id = ?
+                ORDER BY aal.created_at DESC
+                LIMIT 10
+            ");
+            $stmt->execute([$userId]);
+            $auditLog = $stmt->fetchAll();
             
             // Format audit log dates
             foreach ($auditLog as &$log) {
@@ -4591,26 +3423,18 @@ class ApiController extends BaseController {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             
-            // Log audit actions (if table exists)
-            try {
-                $stmt = $this->pdo->query("SHOW TABLES LIKE 'admin_audit_log'");
-                if ($stmt->rowCount() > 0) {
-                    foreach ($auditActions as $action) {
-                        $stmt = $this->pdo->prepare("
-                            INSERT INTO admin_audit_log (admin_id, user_id, action_type, metadata)
-                            VALUES (?, ?, ?, ?)
-                        ");
-                        $stmt->execute([
-                            $_SESSION['user_id'],
-                            $userId,
-                            $action['action_type'],
-                            $action['metadata']
-                        ]);
-                    }
-                }
-            } catch (PDOException $e) {
-                error_log("Admin audit log insert failed (table may not exist): " . $e->getMessage());
-                // Continue without audit logging if table doesn't exist
+            // Log audit actions
+            foreach ($auditActions as $action) {
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO admin_audit_log (admin_id, user_id, action_type, metadata)
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $_SESSION['user_id'],
+                    $userId,
+                    $action['action_type'],
+                    $action['metadata']
+                ]);
             }
             
             $this->pdo->commit();
@@ -4655,17 +3479,76 @@ class ApiController extends BaseController {
         $userId = $_SESSION['user_id'];
         $cartItems = $input['cart_items'] ?? [];
         $deliveryAddressId = intval($input['delivery_address_id'] ?? 0);
-        $deliverySlot = $input['delivery_slot'] ?? '';
-        $paymentMethod = $input['payment_method'] ?? 'cod';
+        $deliverySlot = trim($input['delivery_slot'] ?? '');
+        
+        // Normalize payment method - frontend may send 'cod', database expects 'cod' (not 'cash_on_delivery')
+        $paymentMethodInput = strtolower(trim($input['payment_method'] ?? 'cod'));
+        $paymentMethodMap = [
+            'cod' => 'cod',
+            'cash_on_delivery' => 'cod',
+            'bkash' => 'bkash',
+            'nagad' => 'nagad',
+            'card' => 'card',
+            'wallet' => 'cod'  // Wallet not in enum, default to cod
+        ];
+        $paymentMethod = $paymentMethodMap[$paymentMethodInput] ?? 'cod';
 
         if (empty($cartItems)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Cart is empty']);
             return;
         }
+        
+        // Validate required fields
+        if (empty($deliverySlot)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Delivery slot is required']);
+            return;
+        }
+        
+        // Validate address (either existing or new)
+        if (!$deliveryAddressId && (empty($input['new_address_line1']) || empty($input['new_city']))) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Delivery address is required']);
+            return;
+        }
 
         try {
             $this->pdo->beginTransaction();
+            
+            error_log("🛒 Starting order creation for user: $userId");
+            error_log("🛒 Cart items count: " . count($cartItems));
+            error_log("🛒 Delivery address ID: $deliveryAddressId");
+            error_log("🛒 Delivery slot: $deliverySlot");
+            error_log("🛒 Payment method: $paymentMethod");
+
+            // Handle new address creation if provided
+            if (!$deliveryAddressId && !empty($input['new_address_line1']) && !empty($input['new_city'])) {
+                error_log("🏠 Creating new address for user");
+                $addressType = $input['new_address_type'] ?? 'home';
+                $isDefault = isset($input['new_is_default']) && $input['new_is_default'] ? 1 : 0;
+                
+                // If this is the default address, unset other defaults
+                if ($isDefault) {
+                    $stmt = $this->pdo->prepare("UPDATE user_addresses SET is_default = FALSE WHERE user_id = ?");
+                    $stmt->execute([$userId]);
+                }
+                
+                $stmt = $this->pdo->prepare("INSERT INTO user_addresses (user_id, address_type, address_line1, address_line2, city, state, zip_code, country, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    $userId,
+                    $addressType,
+                    trim($input['new_address_line1']),
+                    trim($input['new_address_line2'] ?? ''),
+                    trim($input['new_city']),
+                    trim($input['new_state'] ?? ''),
+                    trim($input['new_zip_code'] ?? ''),
+                    trim($input['new_country'] ?? 'Bangladesh'),
+                    $isDefault
+                ]);
+                $deliveryAddressId = $this->pdo->lastInsertId();
+                error_log("✅ New address created with ID: $deliveryAddressId");
+            }
 
             // Calculate totals on server
             $subtotal = 0.0;
@@ -4675,17 +3558,37 @@ class ApiController extends BaseController {
                 $stmt = $this->pdo->prepare("SELECT price FROM products WHERE id = ?");
                 $stmt->execute([$productId]);
                 $row = $stmt->fetch();
-                if (!$row) { throw new Exception('Invalid product in cart'); }
+                if (!$row) { 
+                    throw new Exception("Invalid product in cart: Product ID $productId not found"); 
+                }
                 $subtotal += floatval($row['price']) * $qty;
             }
             $deliveryFee = floatval($input['delivery_fee'] ?? 0);
             $discount = floatval($input['discount'] ?? 0);
             $totalPayable = max(0, $subtotal + $deliveryFee - $discount);
+            
+            error_log("💰 Order totals - Subtotal: $subtotal, Delivery: $deliveryFee, Discount: $discount, Total: $totalPayable");
 
             // Create order
-            $stmt = $this->pdo->prepare("INSERT INTO orders (user_id, total_amount, total_payable, delivery_address_id, delivery_slot, payment_method, payment_status, status) VALUES (?, ?, ?, ?, ?, ?, 'unpaid', 'pending')");
-            $stmt->execute([$userId, $totalPayable, $totalPayable, $deliveryAddressId ?: null, $deliverySlot, $paymentMethod]);
+            // Note: Database enum for payment_status: 'unpaid','pending','paid','failed','refunded'
+            // Database enum for payment_method: 'bkash','nagad','card','cod'
+            // Database enum for status: 'pending','confirmed','packed','out_for_delivery','delivered','cancelled'
+            $packagingOption = strtolower(trim($input['packaging_option'] ?? 'standard'));
+            $packagingCost = 0;
+            if ($packagingOption === 'reusable_bag') {
+                $packagingCost = 20.00;
+            }
+            $finalTotalWithPackaging = $totalPayable + $packagingCost;
+            
+            $stmt = $this->pdo->prepare("INSERT INTO orders (user_id, total_amount, delivery_address_id, delivery_slot, payment_method, payment_status, status, packaging_option, packaging_cost) VALUES (?, ?, ?, ?, ?, 'unpaid', 'pending', ?, ?)");
+            $stmt->execute([$userId, $finalTotalWithPackaging, $deliveryAddressId ?: null, $deliverySlot, $paymentMethod, $packagingOption, $packagingCost]);
             $orderId = $this->pdo->lastInsertId();
+            
+            if (!$orderId) {
+                throw new Exception('Failed to create order - no order ID returned');
+            }
+            
+            error_log("✅ Order created successfully - Order ID: $orderId, User ID: $userId, Total: $totalPayable");
 
             // Snapshot items
             foreach ($cartItems as $ci) {
@@ -4703,19 +3606,168 @@ class ApiController extends BaseController {
             // Clear cart items for this user after snapshotting
             $stmt = $this->pdo->prepare("DELETE FROM cart_items WHERE user_id = ?");
             $stmt->execute([$userId]);
+            $cartCleared = $stmt->rowCount();
+            error_log("🛒 Cleared $cartCleared cart items for user");
+
+            // Handle selected surprise gift - link to order
+            require_once __DIR__ . '/../helpers/SurpriseGiftHelper.php';
+            $surpriseGiftHelper = new SurpriseGiftHelper($this->pdo);
+            
+            // Check if user has a selected surprise gift (from database with NULL order_id)
+            $stmt = $this->pdo->prepare("
+                SELECT usg.*, sg.product_id, sg.quantity as gift_quantity, sg.name as gift_name
+                FROM user_surprise_gifts usg
+                JOIN surprise_gifts sg ON usg.surprise_gift_id = sg.id
+                WHERE usg.user_id = ? AND usg.order_id IS NULL
+                LIMIT 1
+            ");
+            $stmt->execute([$userId]);
+            $selectedGift = $stmt->fetch();
+            
+            if ($selectedGift) {
+                error_log("🎁 Found selected surprise gift: " . $selectedGift['gift_name']);
+                
+                // Update user_surprise_gifts with order_id
+                $stmt = $this->pdo->prepare("
+                    UPDATE user_surprise_gifts 
+                    SET order_id = ? 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$orderId, $selectedGift['id']]);
+                
+                // Add gift product to order_items (free - price 0)
+                $giftProductId = $selectedGift['product_id'];
+                $giftQuantity = $selectedGift['quantity'] ?? 1;
+                
+                $stmt = $this->pdo->prepare("SELECT name, image FROM products WHERE id = ?");
+                $stmt->execute([$giftProductId]);
+                $giftProduct = $stmt->fetch();
+                
+                if ($giftProduct) {
+                    $stmt = $this->pdo->prepare("
+                        INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price, product_name_snapshot, product_image_snapshot) 
+                        VALUES (?, ?, ?, 0.00, 0.00, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $orderId, 
+                        $giftProductId, 
+                        $giftQuantity,
+                        $giftProduct['name'] ?? null,
+                        $giftProduct['image'] ?? null
+                    ]);
+                    
+                    // Update gift usage count
+                    $stmt = $this->pdo->prepare("
+                        UPDATE surprise_gifts 
+                        SET current_uses = current_uses + 1 
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$selectedGift['surprise_gift_id']]);
+                    
+                    // Update order to mark it has surprise gift
+                    $giftMessage = "🎁 You unlocked a surprise gift! " . $selectedGift['gift_name'] . " added to your order";
+                    $stmt = $this->pdo->prepare("
+                        UPDATE orders 
+                        SET has_surprise_gift = 1, 
+                            surprise_gift_message = ?
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$giftMessage, $orderId]);
+                    
+                    error_log("✅ Surprise gift linked to order: " . $selectedGift['gift_name']);
+                }
+            } else {
+                // Also check session for backward compatibility
+                if (isset($_SESSION['selected_surprise_gift'])) {
+                    $sessionGift = $_SESSION['selected_surprise_gift'];
+                    error_log("🎁 Found surprise gift in session: " . $sessionGift['name']);
+                    
+                    // Get gift details
+                    $stmt = $this->pdo->prepare("
+                        SELECT * FROM surprise_gifts 
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$sessionGift['gift_id']]);
+                    $gift = $stmt->fetch();
+                    
+                    if ($gift) {
+                        // Add to user_surprise_gifts with order_id
+                        $stmt = $this->pdo->prepare("
+                            INSERT INTO user_surprise_gifts (user_id, order_id, surprise_gift_id, quantity) 
+                            VALUES (?, ?, ?, ?)
+                        ");
+                        $stmt->execute([$userId, $orderId, $gift['id'], $gift['quantity'] ?? 1]);
+                        
+                        // Add gift to order items
+                        $stmt = $this->pdo->prepare("SELECT name, image FROM products WHERE id = ?");
+                        $stmt->execute([$gift['product_id']]);
+                        $giftProduct = $stmt->fetch();
+                        
+                        if ($giftProduct) {
+                            $stmt = $this->pdo->prepare("
+                                INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price, product_name_snapshot, product_image_snapshot) 
+                                VALUES (?, ?, ?, 0.00, 0.00, ?, ?)
+                            ");
+                            $stmt->execute([
+                                $orderId, 
+                                $gift['product_id'], 
+                                $gift['quantity'] ?? 1,
+                                $giftProduct['name'] ?? null,
+                                $giftProduct['image'] ?? null
+                            ]);
+                            
+                            // Update gift usage count
+                            $stmt = $this->pdo->prepare("
+                                UPDATE surprise_gifts 
+                                SET current_uses = current_uses + 1 
+                                WHERE id = ?
+                            ");
+                            $stmt->execute([$gift['id']]);
+                            
+                            // Update order
+                            $giftMessage = "🎁 You unlocked a surprise gift! " . $gift['name'] . " added to your order";
+                            $stmt = $this->pdo->prepare("
+                                UPDATE orders 
+                                SET has_surprise_gift = 1, 
+                                    surprise_gift_message = ?
+                                WHERE id = ?
+                            ");
+                            $stmt->execute([$giftMessage, $orderId]);
+                            
+                            error_log("✅ Surprise gift from session linked to order");
+                        }
+                        
+                        // Clear session
+                        unset($_SESSION['selected_surprise_gift']);
+                    }
+                }
+            }
 
             $this->pdo->commit();
+            error_log("✅ Transaction committed successfully");
 
-            echo json_encode([
+            $response = [
                 'success' => true,
                 'order_id' => intval($orderId),
-                'total_payable' => $totalPayable,
-                'payment_method' => $paymentMethod
-            ]);
+                'total_payable' => $finalTotalWithPackaging,
+                'payment_method' => $paymentMethod,
+                'message' => 'Order placed successfully!'
+            ];
+            
+            error_log("📤 Sending success response: " . json_encode($response));
+            echo json_encode($response);
         } catch (Exception $e) {
-            if ($this->pdo->inTransaction()) { $this->pdo->rollback(); }
+            if ($this->pdo->inTransaction()) { 
+                $this->pdo->rollback(); 
+                error_log("❌ Transaction rolled back due to error");
+            }
+            error_log("❌ Order creation failed: " . $e->getMessage());
+            error_log("❌ Stack trace: " . $e->getTraceAsString());
             http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Failed to create order']);
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Failed to create order: ' . $e->getMessage()
+            ]);
         }
     }
 

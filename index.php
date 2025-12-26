@@ -1,16 +1,6 @@
 <?php
 // Entry point for the Grocery E-Commerce Application
 
-// Determine if this is an API request early
-$isApiRequest = isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/api/') !== false;
-
-// For API routes, suppress ALL error display immediately
-if ($isApiRequest) {
-    ini_set('display_errors', '0');
-    ini_set('display_startup_errors', '0');
-    error_reporting(E_ALL); // Still log errors, just don't display
-}
-
 // Timezone for consistent date/time display (Bangladesh)
 date_default_timezone_set('Asia/Dhaka');
 
@@ -52,26 +42,12 @@ if (preg_match('/^products(\d+)$/', $request, $matches)) {
     $request = 'products/' . $matches[1];
 }
 
-// Start output buffering for API routes to catch any accidental output
-if (strpos($request, 'api/') === 0) {
-    // Clear any existing output buffers
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-    // Start fresh output buffer for API routes
-    ob_start();
-}
-
 // Global CORS preflight handler for API routes
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS' && strpos($request, 'api/') === 0) {
     if (!headers_sent()) {
         header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type');
-    }
-    // Clear output buffer before sending response
-    while (ob_get_level()) {
-        ob_end_clean();
     }
     http_response_code(204);
     exit;
@@ -84,6 +60,12 @@ error_log("Request: '" . $request . "' | Full URI: '" . $_SERVER['REQUEST_URI'] 
 if ($request === '' || $request === '/') {
     $controller = new HomeController();
     $controller->index();
+} elseif ($request === 'about') {
+    $controller = new HomeController();
+    $controller->about();
+} elseif ($request === 'contact') {
+    $controller = new HomeController();
+    $controller->contact();
 } elseif ($request === 'login') {
     $controller = new AuthController();
     $controller->login();
@@ -126,6 +108,25 @@ if ($request === '' || $request === '/') {
 } elseif ($request === 'cart/remove-coupon') {
     $controller = new CartController();
     $controller->removeCoupon();
+} elseif ($request === 'cart/select-surprise-gift') {
+    $controller = new CartController();
+    $controller->selectSurpriseGift();
+} elseif ($request === 'wishlist') {
+    require_once 'app/controllers/WishlistController.php';
+    $controller = new WishlistController();
+    $controller->index();
+} elseif ($request === 'wishlist/add') {
+    require_once 'app/controllers/WishlistController.php';
+    $controller = new WishlistController();
+    $controller->add();
+} elseif ($request === 'wishlist/remove') {
+    require_once 'app/controllers/WishlistController.php';
+    $controller = new WishlistController();
+    $controller->remove();
+} elseif ($request === 'wishlist/count') {
+    require_once 'app/controllers/WishlistController.php';
+    $controller = new WishlistController();
+    $controller->count();
 } elseif ($request === 'coupons/active') {
     $controller = new CouponController();
     $controller->getActiveCoupons();
@@ -177,6 +178,12 @@ if ($request === '' || $request === '/') {
 } elseif ($request === 'profile/save-diet-profile') {
     $controller = new ProfileController();
     $controller->saveDietProfile();
+} elseif ($request === 'profile/save-family-member') {
+    $controller = new ProfileController();
+    $controller->saveFamilyMember();
+} elseif ($request === 'profile/delete-family-member') {
+    $controller = new ProfileController();
+    $controller->deleteFamilyMember();
 } elseif ($request === 'subscriptions') {
     $controller = new SubscriptionsController();
     $controller->index();
@@ -235,9 +242,8 @@ if ($request === '' || $request === '/') {
     $controller = new AdminController();
     $controller->deleteCategory($matches[1]);
 } elseif ($request === 'admin/drivers') {
-    // Drivers section disabled - redirect to dashboard
-    header('Location: /admin');
-    exit;
+    $controller = new AdminController();
+    $controller->drivers();
 } elseif ($request === 'admin/orders') {
     $controller = new AdminController();
     $controller->orders();
@@ -256,9 +262,21 @@ if ($request === '' || $request === '/') {
 } elseif ($request === 'admin/users') {
     $controller = new AdminController();
     $controller->users();
+} elseif ($request === 'admin/users/update-role') {
+    $controller = new AdminController();
+    $controller->updateUserRole();
+} elseif (preg_match('/^admin\/users\/delete\/(\d+)$/', $request, $matches)) {
+    $controller = new AdminController();
+    $controller->deleteUser($matches[1]);
+} elseif ($request === 'admin/users/create') {
+    $controller = new AdminController();
+    $controller->createUser();
 } elseif (preg_match('/^admin\/users\/(\d+)$/', $request, $matches)) {
     $controller = new AdminController();
-    $controller->viewUser($matches[1]);
+    $controller->showUser($matches[1]);
+} elseif (preg_match('/^admin\/users\/(\d+)\/edit$/', $request, $matches)) {
+    $controller = new AdminController();
+    $controller->editUser($matches[1]);
 } elseif ($request === 'admin/coupons') {
     $controller = new AdminController();
     $controller->coupons();
@@ -332,14 +350,9 @@ if ($request === '' || $request === '/') {
 } elseif (preg_match('/^api\/admin\/orders\/(\d+)\/cancel$/', $request, $matches)) {
     $controller = new ApiController();
     $controller->cancelOrder($matches[1]);
-} elseif (preg_match('#^api/admin/drivers(/(\d+))?$#', $request, $matches)) {
-    // Drivers API disabled - return error
-    if (!headers_sent()) {
-        header('Content-Type: application/json');
-        http_response_code(503);
-    }
-    echo json_encode(['success' => false, 'error' => 'Drivers section is currently unavailable']);
-    exit;
+} elseif ($request === 'api/admin/drivers') {
+    $controller = new ApiController();
+    $controller->drivers();
 } elseif ($request === 'api/admin/products') {
     $controller = new ApiController();
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {

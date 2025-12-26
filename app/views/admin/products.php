@@ -18,14 +18,14 @@ include 'app/views/admin/layout.php';
                         <i class="fas fa-sync-alt"></i>
                         <span>Refresh</span>
                     </button>
-                    <button onclick="openAddProductModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                    <a href="/admin/products/create" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
                         <i class="fas fa-plus"></i>
                         <span>Add Product</span>
-                    </button>
-                    <button onclick="openBulkImportModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                    </a>
+                    <a href="/admin/products/bulk-import" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
                         <i class="fas fa-upload"></i>
                         <span>Bulk Import</span>
-                    </button>
+                    </a>
         </div>
     </div>
         </div>
@@ -171,7 +171,7 @@ include 'app/views/admin/layout.php';
     </div>
 </div>
 
-<!-- Product View Modal -->
+<!-- Product Modal -->
 <div id="product-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white dark:bg-gray-800">
         <div class="mt-3">
@@ -183,242 +183,6 @@ include 'app/views/admin/layout.php';
             </div>
             <div id="modal-content">
                 <!-- Modal content will be loaded here -->
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Add/Edit Product Modal -->
-<div id="product-form-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 xl:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white" id="form-modal-title">Add Product</h3>
-            <button onclick="closeProductFormModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <form id="product-form" class="space-y-6">
-            <input type="hidden" id="product-id" name="product_id">
-            
-            <!-- Basic Information -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name <span class="text-red-500">*</span></label>
-                    <input type="text" id="product-name" name="name" required
-                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Brand</label>
-                    <input type="text" id="product-brand" name="brand"
-                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
-                    <textarea id="product-description" name="description" rows="3"
-                              class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category <span class="text-red-500">*</span></label>
-                    <select id="product-category" name="category_id" required
-                            class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                        <option value="">Select Category</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Price <span class="text-red-500">*</span></label>
-                    <input type="number" id="product-price" name="price" step="0.01" min="0" required
-                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unit Size (e.g., 500g, 12pcs)</label>
-                    <input type="text" id="product-unit-size" name="unit_size"
-                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unit (e.g., kg, pcs)</label>
-                    <input type="text" id="product-unit" name="unit"
-                           class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                </div>
-            </div>
-            
-            <!-- Stock Information -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Stock Information</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Stock Quantity</label>
-                        <input type="number" id="product-stock" name="stock_quantity" min="0" value="0"
-                               class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Low Stock Threshold</label>
-                        <input type="number" id="product-low-stock" name="low_stock_threshold" min="0" value="10"
-                               class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Diet & Allergen Information -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Diet & Allergen Information</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Diet Tags</label>
-                        <select id="product-diet-tags" name="diet_tags" multiple
-                                class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                            <option value="halal">Halal</option>
-                            <option value="vegan">Vegan</option>
-                            <option value="vegetarian">Vegetarian</option>
-                            <option value="diabetic-friendly">Diabetic-Friendly</option>
-                            <option value="low-sodium">Low Sodium</option>
-                            <option value="keto">Keto</option>
-                            <option value="gluten-free">Gluten-Free</option>
-                            <option value="organic">Organic</option>
-                        </select>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Allergens</label>
-                        <select id="product-allergens" name="allergens" multiple
-                                class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                            <option value="peanut">Peanut</option>
-                            <option value="lactose">Lactose</option>
-                            <option value="gluten">Gluten</option>
-                            <option value="soy">Soy</option>
-                            <option value="egg">Egg</option>
-                            <option value="fish">Fish</option>
-                            <option value="shellfish">Shellfish</option>
-                        </select>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="flex items-center space-x-2">
-                            <input type="checkbox" id="product-halal-certified" name="halal_certified"
-                                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Halal Certified</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Additional Options -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Additional Options</h4>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" id="product-eco-friendly" name="is_eco_friendly"
-                               class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300"><i class="fas fa-leaf mr-1"></i>Eco-Friendly</span>
-                    </label>
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" id="product-frozen" name="is_frozen"
-                               class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300"><i class="fas fa-snowflake mr-1"></i>Frozen</span>
-                    </label>
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" id="product-active" name="is_active" checked
-                               class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Active</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Image URLs -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Images</h4>
-                <div class="space-y-2">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Main Image URL</label>
-                        <input type="url" id="product-image" name="image"
-                               class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Image URLs (one per line)</label>
-                        <textarea id="product-images" name="images" rows="3" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-                                  class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Form Actions -->
-            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button type="button" onclick="closeProductFormModal()"
-                        class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    Cancel
-                </button>
-                <button type="submit"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                    Save Product
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Bulk Import Modal -->
-<div id="bulk-import-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 xl:w-2/3 shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Bulk Import Products</h3>
-            <button onclick="closeBulkImportModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <div class="space-y-4">
-            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 class="font-medium text-blue-900 dark:text-blue-300 mb-2">JSON Format Example:</h4>
-                <pre class="text-xs overflow-x-auto bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800"><code>{
-  "products": [
-    {
-      "name": "Fresh Apple",
-      "brand": "Organic Farm",
-      "category": "Fruits",
-      "price": 150.00,
-      "unit_size": "1kg",
-      "unit": "kg",
-      "stock_quantity": 50,
-      "low_stock_threshold": 10,
-      "description": "Fresh organic apples",
-      "image": "https://example.com/apple.jpg",
-      "diet_tags": ["organic", "vegan", "halal"],
-      "allergens": [],
-      "halal_certified": true,
-      "is_eco_friendly": true,
-      "is_frozen": false,
-      "is_active": true
-    },
-    {
-      "name": "Premium Rice",
-      "brand": "Farm Fresh",
-      "category": "Grains",
-      "price": 300.00,
-      "unit_size": "5kg",
-      "unit": "kg",
-      "stock_quantity": 100,
-      "low_stock_threshold": 20,
-      "diet_tags": ["halal", "gluten-free"],
-      "allergens": [],
-      "halal_certified": true,
-      "is_active": true
-    }
-  ]
-}</code></pre>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Paste JSON Data:</label>
-                <textarea id="bulk-import-data" rows="15"
-                          class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
-                          placeholder="Paste your JSON data here..."></textarea>
-            </div>
-            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button type="button" onclick="closeBulkImportModal()"
-                        class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    Cancel
-                </button>
-                <button type="button" onclick="processBulkImport()"
-                        class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg">
-                    <i class="fas fa-upload mr-2"></i>Import Products
-                </button>
             </div>
         </div>
     </div>
@@ -450,81 +214,29 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load products from API
 async function loadProducts() {
     try {
-        console.log('🔄 Loading products...', { page: currentPage, filters: currentFilters });
-        
         const params = new URLSearchParams({
             page: currentPage,
             limit: 20,
             ...currentFilters
         });
         
-        const response = await fetch(`/api/admin/products?${params}`, {
-            method: 'GET',
-            credentials: 'same-origin',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-        
-        console.log('📥 Response status:', response.status, response.statusText);
-        
-        // Get response text first
-        const responseText = await response.text();
-        console.log('📥 Response length:', responseText.length);
-        console.log('📥 Response preview:', responseText.substring(0, 200));
-        
-        // Check if response is OK
-        if (!response.ok) {
-            let errorMessage = 'Failed to load products';
-            try {
-                const errorData = JSON.parse(responseText);
-                errorMessage = errorData.error || errorMessage;
-                console.error('❌ API Error Response:', errorData);
-            } catch (e) {
-                if (responseText.trim().startsWith('<')) {
-                    errorMessage = 'Server returned HTML instead of JSON. Check server logs for PHP errors.';
-                } else if (responseText.length > 0) {
-                    errorMessage = 'Error: ' + responseText.substring(0, 100);
-                }
-                console.error('❌ Failed to parse error response:', e);
-            }
-            
-            showNotification(errorMessage, 'error');
-            return;
-        }
-        
-        // Parse JSON response
-        let result;
-        try {
-            result = JSON.parse(responseText);
-            console.log('✅ Parsed JSON successfully:', result);
-        } catch (e) {
-            console.error('❌ JSON parse error:', e);
-            console.error('❌ Response text that failed to parse:', responseText);
-            const errorMsg = responseText.trim().startsWith('<') 
-                ? 'Server returned HTML instead of JSON. Check server logs for PHP errors.'
-                : 'Invalid JSON response from server';
-            showNotification(errorMsg, 'error');
-            return;
-        }
+        const response = await fetch(`/api/admin/products?${params}`);
+        const result = await response.json();
         
         if (result.success) {
-            console.log('✅ Success! Products count:', result.data?.length || 0);
-            displayProducts(result.data || []);
-            updatePagination(result.pagination || { current_page: 1, total: 0, total_pages: 1 });
+            displayProducts(result.data);
+            updatePagination(result.pagination);
             if (result.statistics) {
                 updateStatistics(result.statistics);
-            } else if (result.data) {
+            } else {
                 updateStatistics(result.data);
             }
         } else {
-            console.error('❌ API returned success=false:', result);
-            showNotification('Failed to load products: ' + (result.error || 'Unknown error'), 'error');
+            showNotification('Failed to load products: ' + result.error, 'error');
         }
     } catch (error) {
-        console.error('❌ Error loading products:', error);
-        console.error('❌ Error stack:', error.stack);
-        showNotification('Failed to load products: ' + (error.message || 'Network error'), 'error');
+        console.error('Error loading products:', error);
+        showNotification('Failed to load products', 'error');
     }
 }
 
@@ -606,9 +318,9 @@ function displayProducts(products) {
                     <button onclick="viewProduct(${product.id})" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button onclick="editProduct(${product.id})" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300">
+                    <a href="/admin/products/edit/${product.id}" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300">
                         <i class="fas fa-edit"></i>
-                    </button>
+                    </a>
                     <button onclick="deleteProduct(${product.id})" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -828,216 +540,6 @@ async function deleteProduct(productId) {
 // Refresh products
 function refreshProducts() {
     loadProducts();
-}
-
-// Open Add Product Modal
-function openAddProductModal() {
-    document.getElementById('form-modal-title').textContent = 'Add Product';
-    document.getElementById('product-form').reset();
-    document.getElementById('product-id').value = '';
-    
-    // Load categories into dropdown
-    loadCategoriesForForm();
-    
-    document.getElementById('product-form-modal').classList.remove('hidden');
-}
-
-// Close Product Form Modal
-function closeProductFormModal() {
-    document.getElementById('product-form-modal').classList.add('hidden');
-}
-
-// Edit Product
-async function editProduct(productId) {
-    try {
-        const response = await fetch(`/api/admin/products/${productId}`);
-        const result = await response.json();
-        
-        if (result.success) {
-            const product = result.data;
-            document.getElementById('form-modal-title').textContent = 'Edit Product';
-            document.getElementById('product-id').value = product.id;
-            document.getElementById('product-name').value = product.name || '';
-            document.getElementById('product-brand').value = product.brand || '';
-            document.getElementById('product-description').value = product.description || '';
-            document.getElementById('product-price').value = product.price || '';
-            document.getElementById('product-unit-size').value = product.unit_size || '';
-            document.getElementById('product-unit').value = product.unit || '';
-            document.getElementById('product-stock').value = product.stock_quantity || 0;
-            document.getElementById('product-low-stock').value = product.low_stock_threshold || 10;
-            document.getElementById('product-image').value = product.image || '';
-            
-            // Load categories and set selected
-            await loadCategoriesForForm();
-            document.getElementById('product-category').value = product.category_id || '';
-            
-            // Set checkboxes
-            document.getElementById('product-eco-friendly').checked = product.is_eco_friendly == 1;
-            document.getElementById('product-frozen').checked = product.is_frozen == 1;
-            document.getElementById('product-active').checked = product.is_active == 1;
-            document.getElementById('product-halal-certified').checked = product.halal_certified == 1;
-            
-            // Set diet tags
-            if (product.diet_tags) {
-                const tags = JSON.parse(product.diet_tags);
-                Array.from(document.getElementById('product-diet-tags').options).forEach(option => {
-                    option.selected = tags.includes(option.value);
-                });
-            }
-            
-            // Set allergens
-            if (product.allergens) {
-                const allergens = JSON.parse(product.allergens);
-                Array.from(document.getElementById('product-allergens').options).forEach(option => {
-                    option.selected = allergens.includes(option.value);
-                });
-            }
-            
-            // Set images
-            if (product.images) {
-                const images = JSON.parse(product.images);
-                document.getElementById('product-images').value = images.join('\n');
-            }
-            
-            document.getElementById('product-form-modal').classList.remove('hidden');
-        } else {
-            showNotification('Failed to load product: ' + result.error, 'error');
-        }
-    } catch (error) {
-        console.error('Error loading product for edit:', error);
-        showNotification('Failed to load product', 'error');
-    }
-}
-
-// Load Categories for Form
-async function loadCategoriesForForm() {
-    try {
-        const response = await fetch('/api/admin/products');
-        const result = await response.json();
-        
-        if (result.success && result.filters && result.filters.categories) {
-            const select = document.getElementById('product-category');
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">Select Category</option>' + 
-                result.filters.categories.map(cat => 
-                    `<option value="${cat.id}">${cat.name}</option>`
-                ).join('');
-            if (currentValue) {
-                select.value = currentValue;
-            }
-        }
-    } catch (error) {
-        console.error('Error loading categories:', error);
-    }
-}
-
-// Handle Product Form Submit
-document.getElementById('product-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const productData = {
-        name: formData.get('name'),
-        brand: formData.get('brand') || '',
-        description: formData.get('description') || '',
-        price: parseFloat(formData.get('price')),
-        unit_size: formData.get('unit_size') || '',
-        unit: formData.get('unit') || '',
-        stock_quantity: parseInt(formData.get('stock_quantity')) || 0,
-        low_stock_threshold: parseInt(formData.get('low_stock_threshold')) || 10,
-        category_id: parseInt(formData.get('category_id')),
-        image: formData.get('image') || '',
-        is_eco_friendly: document.getElementById('product-eco-friendly').checked,
-        is_frozen: document.getElementById('product-frozen').checked,
-        is_active: document.getElementById('product-active').checked,
-        halal_certified: document.getElementById('product-halal-certified').checked,
-        diet_tags: Array.from(document.getElementById('product-diet-tags').selectedOptions).map(opt => opt.value),
-        allergens: Array.from(document.getElementById('product-allergens').selectedOptions).map(opt => opt.value)
-    };
-    
-    // Handle images
-    const imagesText = document.getElementById('product-images').value.trim();
-    if (imagesText) {
-        productData.images = imagesText.split('\n').filter(url => url.trim());
-    }
-    
-    const productId = document.getElementById('product-id').value;
-    const url = productId ? `/api/admin/products/${productId}` : '/api/admin/products';
-    const method = productId ? 'PATCH' : 'POST';
-    
-    try {
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(productData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification(productId ? 'Product updated successfully' : 'Product created successfully', 'success');
-            closeProductFormModal();
-            loadProducts();
-        } else {
-            showNotification('Failed to save product: ' + result.error, 'error');
-        }
-    } catch (error) {
-        console.error('Error saving product:', error);
-        showNotification('Failed to save product', 'error');
-    }
-});
-
-// Open Bulk Import Modal
-function openBulkImportModal() {
-    document.getElementById('bulk-import-data').value = '';
-    document.getElementById('bulk-import-modal').classList.remove('hidden');
-}
-
-// Close Bulk Import Modal
-function closeBulkImportModal() {
-    document.getElementById('bulk-import-modal').classList.add('hidden');
-}
-
-// Process Bulk Import
-async function processBulkImport() {
-    const jsonData = document.getElementById('bulk-import-data').value.trim();
-    
-    if (!jsonData) {
-        showNotification('Please paste JSON data', 'warning');
-        return;
-    }
-    
-    try {
-        const data = JSON.parse(jsonData);
-        
-        const response = await fetch('/api/admin/products/bulk-import', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            const message = result.message || `Successfully imported ${result.results?.success_count || 0} product(s)`;
-            showNotification(message, 'success');
-            closeBulkImportModal();
-            loadProducts();
-            
-            if (result.results?.failed_count > 0) {
-                console.warn('Some products failed to import:', result.results.failed);
-            }
-        } else {
-            showNotification('Import failed: ' + (result.error || 'Unknown error'), 'error');
-        }
-    } catch (error) {
-        console.error('Error parsing JSON:', error);
-        showNotification('Invalid JSON format. Please check your data.', 'error');
-    }
 }
 
 // Show notification

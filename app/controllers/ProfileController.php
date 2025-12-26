@@ -21,8 +21,14 @@ class ProfileController extends BaseController {
         $addresses = $stmt->fetchAll();
 
         // Get user diet profile
+        require_once __DIR__ . '/../helpers/DietHelper.php';
         $dietHelper = new DietHelper($this->pdo);
         $dietProfile = $dietHelper->getUserDietProfile($userId);
+        
+        // Get family member profiles
+        require_once __DIR__ . '/../helpers/FamilyMemberHelper.php';
+        $familyMemberHelper = new FamilyMemberHelper($this->pdo);
+        $familyMembers = $familyMemberHelper->getFamilyMemberProfiles($userId);
 
         // Get user subscriptions
         $subscriptions = [];
@@ -61,6 +67,7 @@ class ProfileController extends BaseController {
             'user' => $user,
             'addresses' => $addresses,
             'dietProfile' => $dietProfile,
+            'familyMembers' => $familyMembers,
             'subscriptions' => $subscriptions
         ]);
     }
@@ -316,9 +323,10 @@ class ProfileController extends BaseController {
             $height = floatval($_POST['height'] ?? 0);
             $age = intval($_POST['age'] ?? 0);
             $activityLevel = $_POST['activity_level'] ?? 'moderately_active';
+            $familyMembers = !empty($_POST['family_members']) ? intval($_POST['family_members']) : null;
 
             // Log all received data
-            error_log("Diet Profile Data - User: $userId, Goal: $dietGoal, Calories: $calorieTarget, Weight: $currentWeight, Target: $targetWeight, Height: $height, Age: $age, Activity: $activityLevel");
+            error_log("Diet Profile Data - User: $userId, Goal: $dietGoal, Calories: $calorieTarget, Weight: $currentWeight, Target: $targetWeight, Height: $height, Age: $age, Activity: $activityLevel, Family Members: " . ($familyMembers ?? 'Not set'));
 
             $errors = [];
 
@@ -358,10 +366,16 @@ class ProfileController extends BaseController {
                 $errors[] = 'Invalid activity level';
             }
 
+            // Validate family members (optional but if provided, must be valid)
+            $validFamilyMemberOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30];
+            if ($familyMembers !== null && !in_array($familyMembers, $validFamilyMemberOptions)) {
+                $errors[] = 'Invalid family members selection';
+            }
+
             if (empty($errors)) {
                 try {
                     $dietHelper = new DietHelper($this->pdo);
-                    $result = $dietHelper->saveDietProfile($userId, $dietGoal, $calorieTarget, $currentWeight, $targetWeight, $height, $age, $activityLevel);
+                    $result = $dietHelper->saveDietProfile($userId, $dietGoal, $calorieTarget, $currentWeight, $targetWeight, $height, $age, $activityLevel, null, $familyMembers);
                     
                     error_log("Diet profile saved successfully with ID: " . $result);
                     echo json_encode(['success' => true, 'message' => 'Diet profile updated successfully']);
@@ -372,6 +386,118 @@ class ProfileController extends BaseController {
             } else {
                 error_log("Diet profile validation errors: " . implode(', ', $errors));
                 echo json_encode(['success' => false, 'errors' => $errors]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+        }
+    }
+    
+    /**
+     * Save family member profile
+     */
+    public function saveFamilyMember() {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        
+        require_once __DIR__ . '/../helpers/FamilyMemberHelper.php';
+        
+        // Log the request for debugging
+        error_log("=== Family Member Save Request ===");
+        error_log("Method: " . $_SERVER['REQUEST_METHOD']);
+        error_log("POST data: " . print_r($_POST, true));
+        error_log("Session user_id: " . ($_SESSION['user_id'] ?? 'NOT SET'));
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!isset($_SESSION['user_id'])) {
+                error_log("ERROR: User not logged in");
+                echo json_encode(['success' => false, 'message' => 'Please login']);
+                return;
+            }
+            
+            $userId = $_SESSION['user_id'];
+            $data = [
+                'id' => !empty($_POST['member_id']) ? intval($_POST['member_id']) : null,
+                'member_type' => $_POST['member_type'] ?? 'adult',
+                'member_count' => intval($_POST['member_count'] ?? 1),
+                'diet_goal' => $_POST['diet_goal'] ?? 'general',
+                'calorie_target' => !empty($_POST['calorie_target']) ? intval($_POST['calorie_target']) : null,
+                'current_weight' => !empty($_POST['current_weight']) ? floatval($_POST['current_weight']) : null,
+                'target_weight' => !empty($_POST['target_weight']) ? floatval($_POST['target_weight']) : null,
+                'height' => !empty($_POST['height']) ? floatval($_POST['height']) : null,
+                'age' => !empty($_POST['age']) ? intval($_POST['age']) : null,
+                'activity_level' => $_POST['activity_level'] ?? 'moderately_active'
+            ];
+            
+            error_log("Processed data: " . print_r($data, true));
+            
+            // Validate
+            $errors = [];
+            $validTypes = ['child', 'teenager', 'adolescent', 'adult'];
+            if (!in_array($data['member_type'], $validTypes)) {
+                $errors[] = 'Invalid member type';
+            }
+            
+            if ($data['member_count'] < 1 || $data['member_count'] > 50) {
+                $errors[] = 'Member count must be between 1 and 50';
+            }
+            
+            if (empty($errors)) {
+                try {
+                    error_log("Attempting to save family member profile...");
+                    $familyMemberHelper = new FamilyMemberHelper($this->pdo);
+                    $resultId = $familyMemberHelper->saveFamilyMemberProfile($userId, $data);
+                    error_log("✅ Family member profile saved successfully with ID: " . $resultId);
+                    echo json_encode(['success' => true, 'message' => 'Family member profile saved successfully', 'id' => $resultId]);
+                } catch (Exception $e) {
+                    error_log("❌ Save family member error: " . $e->getMessage());
+                    error_log("Stack trace: " . $e->getTraceAsString());
+                    echo json_encode(['success' => false, 'message' => 'Failed to save: ' . $e->getMessage()]);
+                }
+            } else {
+                error_log("Validation errors: " . implode(', ', $errors));
+                echo json_encode(['success' => false, 'errors' => $errors]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+        }
+    }
+    
+    /**
+     * Delete family member profile
+     */
+    public function deleteFamilyMember() {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        
+        require_once __DIR__ . '/../helpers/FamilyMemberHelper.php';
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!isset($_SESSION['user_id'])) {
+                echo json_encode(['success' => false, 'message' => 'Please login']);
+                return;
+            }
+            
+            $userId = $_SESSION['user_id'];
+            $memberId = intval($_POST['member_id'] ?? 0);
+            
+            if ($memberId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Invalid member ID']);
+                return;
+            }
+            
+            try {
+                $familyMemberHelper = new FamilyMemberHelper($this->pdo);
+                $result = $familyMemberHelper->deleteFamilyMemberProfile($memberId, $userId);
+                if ($result) {
+                    echo json_encode(['success' => true, 'message' => 'Family member profile deleted successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to delete profile']);
+                }
+            } catch (Exception $e) {
+                error_log("Delete family member error: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Failed to delete: ' . $e->getMessage()]);
             }
         } else {
             echo json_encode(['success' => false, 'message' => 'Invalid request method']);

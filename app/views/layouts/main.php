@@ -195,7 +195,18 @@
                     <a href="/products" class="nav-link hover:text-green-200 transition-colors duration-300">
                         <i class="fas fa-store mr-1"></i>Products
                     </a>
+                    <a href="/about" class="nav-link hover:text-green-200 transition-colors duration-300">
+                        <i class="fas fa-info-circle mr-1"></i>About Us
+                    </a>
+                    <a href="/contact" class="nav-link hover:text-green-200 transition-colors duration-300">
+                        <i class="fas fa-phone mr-1"></i>Contacts
+                    </a>
                     <?php if (isset($_SESSION['user_id'])): ?>
+                        <a href="/wishlist" class="nav-link hover:text-green-200 transition-colors duration-300 relative">
+                            <i class="fas fa-heart"></i>
+                            <span class="ml-1">Wishlist</span>
+                            <span class="wishlist-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce-in hidden">0</span>
+                        </a>
                         <a href="/cart" class="nav-link hover:text-green-200 transition-colors duration-300 relative">
                             <i class="fas fa-shopping-cart"></i>
                             <span class="ml-1">Cart</span>
@@ -211,6 +222,9 @@
                                 <div class="py-2">
                                     <a href="/profile" class="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 transition-colors duration-200 rounded-lg mx-2">
                                         <i class="fas fa-user mr-2"></i>Profile
+                                    </a>
+                                    <a href="/wishlist" class="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 transition-colors duration-200 rounded-lg mx-2">
+                                        <i class="fas fa-heart mr-2"></i>My Wishlist
                                     </a>
                                     <a href="/orders" class="block px-4 py-3 text-gray-800 hover:bg-green-50 hover:text-green-700 transition-colors duration-200 rounded-lg mx-2">
                                         <i class="fas fa-shopping-bag mr-2"></i>My Orders
@@ -323,7 +337,7 @@
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-12 pt-8 text-center">
-                <p class="text-gray-400">&copy; 2024 GroceryApp. All rights reserved. Made with <i class="fas fa-heart text-red-500 mx-1"></i> for fresh groceries.</p>
+                <p class="text-gray-400">&copy; 2025 GroceryApp. All rights reserved. Made with <i class="fas fa-heart text-red-500 mx-1"></i> for fresh groceries.</p>
             </div>
         </div>
     </footer>

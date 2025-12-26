@@ -54,8 +54,8 @@ class CalorieHelper {
             $result = $stmt->fetch();
             
             return [
-                'total_calories' => $result['total_calories'] ?: 0,
-                'item_count' => $result['item_count'] ?: 0
+                'total_calories' => intval($result['total_calories'] ?? 0),
+                'item_count' => intval($result['item_count'] ?? 0)
             ];
         } catch (Exception $e) {
             error_log("Error getting cart calories: " . $e->getMessage());
@@ -96,13 +96,42 @@ class CalorieHelper {
     }
     
     /**
-     * Get calorie recommendation for cart
+     * Get combined calorie target for user and all family members
+     */
+    public function getCombinedCalorieTarget($userId) {
+        // Get user's calorie target
+        $userTarget = $this->getUserDailyCalorieTarget($userId);
+        
+        // Get family members' combined calorie target
+        require_once __DIR__ . '/FamilyMemberHelper.php';
+        $familyMemberHelper = new FamilyMemberHelper($this->pdo);
+        $familyData = $familyMemberHelper->getCombinedCalorieTarget($userId);
+        
+        $familyTarget = intval($familyData['total_calories'] ?? 0);
+        $familyMemberCount = intval($familyData['total_members'] ?? 0);
+        
+        // Combined target = user + family members
+        $combinedTarget = $userTarget + $familyTarget;
+        
+        return [
+            'user_target' => $userTarget,
+            'family_target' => $familyTarget,
+            'family_member_count' => $familyMemberCount,
+            'combined_target' => $combinedTarget,
+            'total_persons' => 1 + $familyMemberCount // User + family members
+        ];
+    }
+    
+    /**
+     * Get calorie recommendation for cart (includes user + family members)
      */
     public function getCalorieRecommendation($userId) {
-        $dailyTarget = $this->getUserDailyCalorieTarget($userId);
-        $weeklyTarget = $this->getWeeklyCalorieTarget($userId);
-        $cartData = $this->getCartTotalCalories($userId);
+        // Get combined calorie target (user + family members)
+        $combinedData = $this->getCombinedCalorieTarget($userId);
+        $dailyTarget = $combinedData['combined_target'];
+        $weeklyTarget = $dailyTarget * 7;
         
+        $cartData = $this->getCartTotalCalories($userId);
         $cartCalories = $cartData['total_calories'];
         $itemCount = $cartData['item_count'];
         
@@ -145,7 +174,11 @@ class CalorieHelper {
             'weekly_target' => $weeklyTarget,
             'daily_percentage' => round($dailyPercentage, 1),
             'weekly_percentage' => round($weeklyPercentage, 1),
-            'item_count' => $itemCount
+            'item_count' => $itemCount,
+            'user_target' => $combinedData['user_target'],
+            'family_target' => $combinedData['family_target'],
+            'family_member_count' => $combinedData['family_member_count'],
+            'total_persons' => $combinedData['total_persons']
         ];
     }
     

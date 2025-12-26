@@ -40,6 +40,12 @@ class CheckoutController extends BaseController {
 
         $finalTotal = $total - $discount;
 
+        // Calculate delivery fee: Free if order total >= 3000, otherwise 50
+        $freeDeliveryThreshold = 3000;
+        $deliveryFee = ($finalTotal >= $freeDeliveryThreshold) ? 0 : 50.00;
+        $serviceCharge = 10.00; // Service charge is always applied
+        $totalWithDelivery = $finalTotal + $deliveryFee + $serviceCharge;
+
         // Get user addresses
         $stmt = $this->pdo->prepare("SELECT * FROM user_addresses WHERE user_id = ?");
         $stmt->execute([$userId]);
@@ -55,6 +61,10 @@ class CheckoutController extends BaseController {
             'total' => $total,
             'discount' => $discount,
             'finalTotal' => $finalTotal,
+            'deliveryFee' => $deliveryFee,
+            'serviceCharge' => $serviceCharge,
+            'totalWithDelivery' => $totalWithDelivery,
+            'freeDeliveryThreshold' => $freeDeliveryThreshold,
             'appliedCoupon' => $appliedCoupon,
             'addresses' => $addresses
         ]);
